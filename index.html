@@ -400,19 +400,19 @@ service cloud.firestore {
         <div class="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-xs space-y-3.5">
           <div class="flex flex-wrap items-center justify-between gap-2.5">
             <div class="flex flex-wrap items-center gap-2">
+              <button id="btn-load-sample-toolbar" type="button" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-sm font-semibold transition">
+                <i data-lucide="users" class="w-4 h-4 text-amber-700"></i>
+                <span>טען את רשימת המוזמנים</span>
+              </button>
+
               <button id="btn-add-guest" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold shadow-xs transition active:scale-[0.99]">
                 <i data-lucide="plus" class="w-4 h-4 text-amber-400"></i>
-                <span>הוסף מוזמן</span>
+                <span>הוסף מוזמן ידנית</span>
               </button>
 
               <button id="btn-export-excel" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 text-sm font-medium transition">
                 <i data-lucide="download" class="w-4 h-4 text-emerald-600"></i>
                 <span>ייצוא ל-Excel</span>
-              </button>
-
-              <button id="btn-load-sample-toolbar" type="button" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-sm font-semibold transition">
-                <i data-lucide="wand-2" class="w-4 h-4 text-amber-700"></i>
-                <span>טען את רשימת המוזמנים</span>
               </button>
             </div>
 
@@ -553,8 +553,9 @@ service cloud.firestore {
               <h3 class="text-lg font-bold text-stone-900">תצוגה מקדימה ואימות נתונים</h3>
               <div class="flex flex-wrap items-center gap-2 mt-2">
                 <span id="import-badge-valid" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">0 תקינים</span>
+                <span id="import-badge-update" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-sky-100 text-sky-800">0 עדכונים</span>
                 <span id="import-badge-dup" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">0 כפילויות</span>
-                <span id="import-badge-invalid" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800">0 טלפון/שם שגוי</span>
+                <span id="import-badge-invalid" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800">0 שגיאות</span>
               </div>
             </div>
 
@@ -580,7 +581,7 @@ service cloud.firestore {
                   <th class="py-2.5 px-3">שם להודעה</th>
                   <th class="py-2.5 px-3">טלפון מקורי ← מנורמל</th>
                   <th class="py-2.5 px-3">צד / קבוצה</th>
-                  <th class="py-2.5 px-3 text-center">כמות</th>
+                  <th class="py-2.5 px-3 text-center">אנשים בהזמנה אחת</th>
                   <th class="py-2.5 px-3">שולחן</th>
                 </tr>
               </thead>
@@ -801,8 +802,8 @@ service cloud.firestore {
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label for="gf-phone" class="block text-sm font-medium text-stone-700 mb-1">טלפון נייד <span class="text-rose-500">*</span></label>
-            <input id="gf-phone" type="tel" dir="ltr" required placeholder="050-1234567" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm text-left" />
+            <label for="gf-phone" class="block text-sm font-medium text-stone-700 mb-1">טלפון נייד <span class="text-stone-400">(אופציונלי)</span></label>
+            <input id="gf-phone" type="tel" dir="ltr" placeholder="050-1234567" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm text-left" />
           </div>
           <div>
             <label for="gf-status" class="block text-sm font-medium text-stone-700 mb-1">סטטוס הגעה</label>
@@ -835,13 +836,27 @@ service cloud.firestore {
             </datalist>
           </div>
           <div>
-            <label for="gf-invitedCount" class="block text-sm font-medium text-stone-700 mb-1">מוזמנים</label>
-            <input id="gf-invitedCount" type="number" min="1" max="30" value="2" class="w-full px-3 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
+            <label for="gf-invitedCount" class="block text-sm font-medium text-stone-700 mb-1">מוזמנים בהזמנה</label>
+            <input id="gf-invitedCount" type="number" min="1" max="30" value="1" class="w-full px-3 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
           </div>
           <div>
             <label for="gf-confirmedCount" class="block text-sm font-medium text-stone-700 mb-1">אישרו</label>
             <input id="gf-confirmedCount" type="number" min="0" max="30" value="0" class="w-full px-3 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
           </div>
+        </div>
+
+        <div id="additional-guests-section" class="hidden bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/70 space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="block text-sm font-semibold text-stone-800">שמות נוספים באותה הזמנה</span>
+              <span class="block text-xs text-stone-500 mt-0.5">השם הראשי מופיע למעלה; הוסיפו כאן שם לכל בן/בת זוג או בן משפחה נוסף.</span>
+            </div>
+            <button id="btn-add-additional-guest" type="button" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+              <span>הוסף שם נוסף</span>
+            </button>
+          </div>
+          <div id="additional-guest-name-fields" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1131,12 +1146,12 @@ service cloud.firestore {
     };
 
     const DEFAULT_SETTINGS = {
-      coupleNames: "החתונה שלנו",
-      eventDate: "2027-09-15",
-      eventTime: "19:30",
-      venueName: "גן האירועים",
-      venueAddress: "רחוב הדקל 10, תל אביב",
-      wazeUrl: "https://waze.com/ul?q=%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91",
+      coupleNames: "מאיה כהן וראם קייזר",
+      eventDate: "2027-09-24",
+      eventTime: "11:00",
+      venueName: "ירוק על המים",
+      venueAddress: "חולדה",
+      wazeUrl: "https://waze.com/ul?q=%D7%99%D7%A8%D7%95%D7%A7%20%D7%A2%D7%9C%20%D7%94%D7%9E%D7%99%D7%9D%20%D7%97%D7%95%D7%9C%D7%93%D7%94",
       invitationSubtitle: "מתרגשים ושמחים להזמין אתכם לחגוג איתנו את היום המיוחד שלנו! נשמח לאישור הגעתכם בקלות בלחיצת כפתור.",
       templates: { ...DEFAULT_TEMPLATES }
     };
@@ -1146,6 +1161,12 @@ service cloud.firestore {
       confirmed: { label: "מגיע", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
       maybe: { label: "מתלבט", cls: "bg-amber-100 text-amber-800 border-amber-200" },
       declined: { label: "לא מגיע", cls: "bg-rose-100 text-rose-800 border-rose-200" }
+    };
+
+    const RSVP_CHOICE_MAP = {
+      confirmed: { emoji: "🎉", label: "מגיע/ה בשמחה", cls: "bg-emerald-50 text-emerald-800 border-emerald-200" },
+      maybe: { emoji: "🤔", label: "עדיין מתלבט/ת", cls: "bg-amber-50 text-amber-900 border-amber-200" },
+      declined: { emoji: "💛", label: "לצערי לא אוכל להגיע", cls: "bg-rose-50 text-rose-800 border-rose-200" }
     };
 
     const TEMPLATE_LABELS = {
@@ -1651,6 +1672,22 @@ service cloud.firestore {
       });
     }
 
+    function renderGuestRsvpChoice(guest) {
+      const choice = guest.rsvpUpdatedAt ? RSVP_CHOICE_MAP[guest.status] : null;
+      if (!choice) {
+        return `<span title="המוזמן עדיין לא השיב להזמנה" class="inline-flex items-center gap-1 rounded-lg border border-stone-200 bg-stone-50 px-2 py-1 text-[11px] font-medium text-stone-500">⌛ טרם השיב</span>`;
+      }
+      return `<span title="בחירת המוזמן בהזמנה" class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold ${choice.cls}"><span>${choice.emoji}</span><span>${choice.label}</span></span>`;
+    }
+
+    function renderAdditionalGuestNames(guest) {
+      const names = Array.isArray(guest.additionalGuestNames)
+        ? guest.additionalGuestNames.map((name) => String(name || "").trim()).filter(Boolean)
+        : [];
+      if (!names.length) return "";
+      return `<div class="mt-1 text-xs text-stone-500">מצטרפים: ${names.map(escapeHtml).join("، ")}</div>`;
+    }
+
     function renderGuestsList() {
       const emptyEl = document.getElementById("guests-empty-state");
       const noMatchesEl = document.getElementById("guests-no-matches");
@@ -1707,9 +1744,10 @@ service cloud.firestore {
               ${g.greetingName && g.greetingName !== g.fullName
                 ? `<div class="text-xs text-stone-500 mt-0.5">פנייה: ${escapeHtml(g.greetingName)}</div>`
                 : ""}
+              ${renderAdditionalGuestNames(g)}
             </td>
             <td class="py-3.5 px-3 whitespace-nowrap">
-              <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-1 rounded-lg">${escapeHtml(formatPhoneDisplay(g.phone))}</span>
+              <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-1 rounded-lg">${escapeHtml(formatPhoneDisplay(g.phone) || "לא הוזן")}</span>
             </td>
             <td class="py-3.5 px-3 whitespace-nowrap">
               <div class="flex items-center gap-1.5">
@@ -1744,19 +1782,22 @@ service cloud.firestore {
               </div>
             </td>
             <td class="py-3.5 px-4 whitespace-nowrap">
-              <div class="flex items-center justify-end gap-1">
-                <button type="button" data-action="copy-link" data-id="${g.id}" title="העתק קישור RSVP" class="p-2 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition">
-                  <i data-lucide="link-2" class="w-4 h-4"></i>
-                </button>
-                <button type="button" data-action="preview-rsvp" data-id="${g.id}" title="תצוגת אורח" class="p-2 rounded-lg text-amber-700 hover:bg-amber-50 transition">
-                  <i data-lucide="eye" class="w-4 h-4"></i>
-                </button>
-                <button type="button" data-action="edit" data-id="${g.id}" title="ערוך מוזמן" class="p-2 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition">
-                  <i data-lucide="pencil" class="w-4 h-4"></i>
-                </button>
-                <button type="button" data-action="delete" data-id="${g.id}" title="מחק מוזמן" class="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition">
-                  <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
+              <div class="flex flex-col items-end gap-1.5">
+                ${renderGuestRsvpChoice(g)}
+                <div class="flex items-center justify-end gap-1">
+                  <button type="button" data-action="copy-link" data-id="${g.id}" title="העתק קישור RSVP" class="p-2 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition">
+                    <i data-lucide="link-2" class="w-4 h-4"></i>
+                  </button>
+                  <button type="button" data-action="preview-rsvp" data-id="${g.id}" title="תצוגת אורח" class="p-2 rounded-lg text-amber-700 hover:bg-amber-50 transition">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                  </button>
+                  <button type="button" data-action="edit" data-id="${g.id}" title="ערוך מוזמן" class="p-2 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition">
+                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                  </button>
+                  <button type="button" data-action="delete" data-id="${g.id}" title="מחק מוזמן" class="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                  </button>
+                </div>
               </div>
             </td>
           </tr>
@@ -1772,8 +1813,9 @@ service cloud.firestore {
               <div class="min-w-0">
                 <h3 class="font-bold text-stone-900 text-base truncate">${escapeHtml(g.fullName)}</h3>
                 ${g.greetingName && g.greetingName !== g.fullName ? `<p class="text-xs text-stone-500">פנייה: ${escapeHtml(g.greetingName)}</p>` : ""}
+                ${renderAdditionalGuestNames(g)}
                 <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">${escapeHtml(formatPhoneDisplay(g.phone))}</span>
+                  <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">${escapeHtml(formatPhoneDisplay(g.phone) || "לא הוזן")}</span>
                   <span class="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/70">${escapeHtml(g.side || "משותף")}</span>
                   ${g.group ? `<span class="text-xs px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">${escapeHtml(g.group)}</span>` : ""}
                   ${g.tableNumber ? `<span class="text-xs px-2 py-0.5 rounded-md bg-stone-900 text-white font-semibold">שולחן ${escapeHtml(g.tableNumber)}</span>` : ""}
@@ -1791,6 +1833,8 @@ service cloud.firestore {
               <span class="text-stone-600">מוזמנים: <strong>${g.invitedCount || 1}</strong></span>
               <span class="${g.status === "confirmed" ? "text-emerald-700 font-bold" : "text-stone-600"}">אישרו בפועל: <strong>${g.confirmedCount || 0}</strong></span>
             </div>
+
+            ${renderGuestRsvpChoice(g)}
 
             ${g.notes ? `<p class="text-xs text-stone-600 bg-amber-50/50 border border-amber-100 rounded-xl px-3 py-2">📝 ${escapeHtml(g.notes)}</p>` : ""}
 
@@ -1920,6 +1964,9 @@ service cloud.firestore {
         side: data.side || "משותף",
         group: (data.group || "חברים").trim(),
         invitedCount: Math.max(1, Number(data.invitedCount) || 1),
+        additionalGuestNames: Array.isArray(data.additionalGuestNames)
+          ? data.additionalGuestNames.map((name) => String(name || "").trim()).filter(Boolean)
+          : [],
         confirmedCount: Math.max(0, Number(data.confirmedCount) || 0),
         status: data.status || "pending",
         tableNumber: (data.tableNumber || "").trim(),
@@ -2216,14 +2263,29 @@ service cloud.firestore {
       const rawPhone = pick(["טלפון", "פלאפון", "נייד", "מספר טלפון", "phone", "mobile", "tel"]);
       const rawSide = pick(["צד", "שיוך", "side"]);
       const group = pick(["קבוצה", "קטגוריה", "group", "category"]) || "חברים";
-      const rawCount = pick(["כמות מוזמנים", "כמות", "מוזמנים", "invited", "count"]);
+      const rawCount = pick(["כמות מוזמנים", "מספר מוזמנים", "כמות אנשים", "מספר אנשים", "מספר נפשות", "כמות", "מוזמנים", "מספר", "invited", "count"]);
+      const rawAdditionalNames = pick(["שמות נוספים בהזמנה", "שמות נוספים", "בני משפחה נוספים", "additional guest names"]);
+      const additionalGuestNames = rawAdditionalNames
+        ? rawAdditionalNames.split(/[|\r\n]+/).map((name) => name.trim()).filter(Boolean)
+        : [];
       const tableNumber = pick(["שולחן", "מספר שולחן", "table", "tablenumber"]);
       const notes = pick(["הערות", "אלרגיות", "תזונה", "notes"]);
 
       const side = ["חתן", "כלה", "משותף"].includes(rawSide) ? rawSide : "משותף";
-      const invitedCount = Math.max(1, parseInt(rawCount, 10) || 1);
+      const invitedCount = Math.max(1, parseInt(rawCount, 10) || 1, additionalGuestNames.length + 1);
 
-      return { fullName, greetingName, rawPhone, side, group, invitedCount, tableNumber, notes };
+      return {
+        fullName,
+        greetingName,
+        rawPhone,
+        side,
+        group,
+        invitedCount,
+        hasInvitedCount: rawCount !== "" || additionalGuestNames.length > 0,
+        additionalGuestNames,
+        tableNumber,
+        notes
+      };
     }
 
     function processImportRows(rawRows) {
@@ -2233,36 +2295,97 @@ service cloud.firestore {
       }
 
       const existingPhones = new Set(state.guests.map((g) => g.phone));
+      const normalizeGuestName = (name) => String(name || "")
+        .normalize("NFKC")
+        .toLowerCase()
+        .replace(/[\s\u200e\u200f־]/g, "")
+        .replace(/["'״׳.,!?()\-]/g, "");
+      const existingGuestsByName = new Map();
+      state.guests.forEach((guest) => {
+        const key = normalizeGuestName(guest.fullName);
+        if (!key) return;
+        const matches = existingGuestsByName.get(key) || [];
+        matches.push(guest);
+        existingGuestsByName.set(key, matches);
+      });
       const seenInFile = new Set();
+      const seenNamesInFile = new Set();
 
       state.importRows = rawRows
         .map((row) => {
           const f = extractRowFields(row);
           if (!f.fullName && !f.rawPhone) return null;
 
-          const phoneRes = normalizeIsraeliPhone(f.rawPhone);
+          const hasPhone = Boolean(f.rawPhone);
+          const phoneRes = hasPhone ? normalizeIsraeliPhone(f.rawPhone) : { valid: true, normalized: "", reason: "" };
+          const nameKey = normalizeGuestName(f.fullName);
+          const matchingGuests = existingGuestsByName.get(nameKey) || [];
           let vStatus = "valid";
-          let vNote = "תקין";
+          let vNote = hasPhone ? "תקין" : "חסר טלפון — ניתן להוסיף בהמשך";
+          let matchingGuestId = "";
+          let updatePhone = false;
+          let updateInvitedCount = false;
+          let updateAdditionalGuestNames = false;
 
           if (!f.fullName) {
             vStatus = "error";
             vNote = "חסר שם מלא";
-          } else if (!phoneRes.valid) {
+          } else if (hasPhone && !phoneRes.valid) {
             vStatus = "error";
             vNote = phoneRes.reason;
-          } else if (existingPhones.has(phoneRes.normalized)) {
-            vStatus = "duplicate";
-            vNote = "כבר קיים ב-Firebase";
-          } else if (seenInFile.has(phoneRes.normalized)) {
+          } else if ((phoneRes.normalized && seenInFile.has(phoneRes.normalized)) || seenNamesInFile.has(nameKey)) {
             vStatus = "duplicate";
             vNote = "כפילות בתוך הקובץ";
+          } else if (matchingGuests.length === 1) {
+            const existingGuest = matchingGuests[0];
+            if (phoneRes.normalized && existingGuest.phone && existingGuest.phone !== phoneRes.normalized) {
+              vStatus = "duplicate";
+              vNote = "שם קיים עם טלפון אחר — נדרשת בדיקה";
+            } else if (phoneRes.normalized && existingGuest.phone !== phoneRes.normalized && existingPhones.has(phoneRes.normalized)) {
+              vStatus = "duplicate";
+              vNote = "מספר הטלפון כבר קיים אצל מוזמן אחר";
+            } else {
+              updatePhone = Boolean(phoneRes.normalized && !existingGuest.phone);
+              updateInvitedCount = Boolean(
+                f.hasInvitedCount && (Number(existingGuest.invitedCount) || 1) !== f.invitedCount
+              );
+              updateAdditionalGuestNames = Boolean(
+                f.additionalGuestNames.length &&
+                JSON.stringify(existingGuest.additionalGuestNames || []) !== JSON.stringify(f.additionalGuestNames)
+              );
+              if (updatePhone || updateInvitedCount || updateAdditionalGuestNames) {
+                vStatus = "update";
+                const changes = [];
+                if (updatePhone) changes.push("מספר טלפון");
+                if (updateInvitedCount) changes.push(`${f.invitedCount} מוזמנים בהזמנה אחת`);
+                if (updateAdditionalGuestNames) changes.push("שמות בני משפחה");
+                vNote = `מוזמן קיים — יעודכנו ${changes.join(" ו")}`;
+                matchingGuestId = existingGuest.id;
+              } else {
+                vStatus = "duplicate";
+                vNote = "המוזמן והפרטים כבר קיימים ב-Firebase";
+              }
+            }
+          } else if (matchingGuests.length > 1) {
+            vStatus = "duplicate";
+            vNote = "נמצאו כמה מוזמנים בשם הזה — נדרשת בדיקה";
+          } else if (phoneRes.normalized && existingPhones.has(phoneRes.normalized)) {
+            vStatus = "duplicate";
+            vNote = "מספר הטלפון כבר קיים ב-Firebase";
           }
 
-          if (phoneRes.valid) seenInFile.add(phoneRes.normalized);
+          if (f.fullName && (!hasPhone || phoneRes.valid)) {
+            if (phoneRes.normalized) seenInFile.add(phoneRes.normalized);
+            if (nameKey) seenNamesInFile.add(nameKey);
+          }
 
           return {
             ...f,
             normalizedPhone: phoneRes.normalized,
+            matchingGuestId,
+            updatePhone,
+            updateInvitedCount,
+            updateAdditionalGuestNames,
             vStatus,
             vNote
           };
@@ -2283,17 +2406,19 @@ service cloud.firestore {
 
       section.classList.remove("hidden");
       const valid = state.importRows.filter((r) => r.vStatus === "valid").length;
+      const updates = state.importRows.filter((r) => r.vStatus === "update").length;
       const dups = state.importRows.filter((r) => r.vStatus === "duplicate").length;
       const errs = state.importRows.filter((r) => r.vStatus === "error").length;
 
       document.getElementById("import-badge-valid").textContent = `${valid} תקינים`;
+      document.getElementById("import-badge-update").textContent = `${updates} עדכונים`;
       document.getElementById("import-badge-dup").textContent = `${dups} כפילויות`;
       document.getElementById("import-badge-invalid").textContent = `${errs} שגיאות`;
       updateCommitImportBtn();
 
       tbody.innerHTML = state.importRows.map((r) => {
-        const bg = r.vStatus === "valid" ? "bg-emerald-50/40" : r.vStatus === "duplicate" ? "bg-amber-50/70" : "bg-rose-50/70";
-        const badge = r.vStatus === "valid" ? "bg-emerald-100 text-emerald-800" : r.vStatus === "duplicate" ? "bg-amber-100 text-amber-900" : "bg-rose-100 text-rose-800";
+        const bg = r.vStatus === "valid" ? "bg-emerald-50/40" : r.vStatus === "update" ? "bg-sky-50/70" : r.vStatus === "duplicate" ? "bg-amber-50/70" : "bg-rose-50/70";
+        const badge = r.vStatus === "valid" ? "bg-emerald-100 text-emerald-800" : r.vStatus === "update" ? "bg-sky-100 text-sky-800" : r.vStatus === "duplicate" ? "bg-amber-100 text-amber-900" : "bg-rose-100 text-rose-800";
         return `
           <tr class="${bg}">
             <td class="py-2.5 px-3 whitespace-nowrap"><span class="text-xs font-semibold px-2 py-0.5 rounded-lg ${badge}">${escapeHtml(r.vNote)}</span></td>
@@ -2301,7 +2426,7 @@ service cloud.firestore {
             <td class="py-2.5 px-3 text-stone-600">${escapeHtml(r.greetingName || "—")}</td>
             <td class="py-2.5 px-3 font-mono text-xs whitespace-nowrap" dir="ltr">
               <span class="text-stone-500">${escapeHtml(r.rawPhone || "—")}</span>
-              ${r.vStatus !== "error" ? ` → <strong class="text-emerald-700">${escapeHtml(r.normalizedPhone)}</strong>` : ""}
+              ${r.normalizedPhone ? ` → <strong class="text-emerald-700">${escapeHtml(r.normalizedPhone)}</strong>` : ""}
             </td>
             <td class="py-2.5 px-3 text-xs">${escapeHtml(r.side)} / ${escapeHtml(r.group)}</td>
             <td class="py-2.5 px-3 text-center font-semibold">${r.invitedCount}</td>
@@ -2314,9 +2439,14 @@ service cloud.firestore {
 
     function updateCommitImportBtn() {
       const skipDups = document.getElementById("import-skip-dups").checked;
-      const eligible = state.importRows.filter((r) => r.vStatus === "valid" || (!skipDups && r.vStatus === "duplicate"));
+      const eligible = state.importRows.filter((r) =>
+        r.vStatus === "valid" || r.vStatus === "update" || (!skipDups && r.vStatus === "duplicate")
+      );
+      const updates = eligible.filter((r) => r.vStatus === "update").length;
       const btn = document.getElementById("btn-commit-import");
-      document.getElementById("btn-commit-import-text").textContent = `שמור ${eligible.length} מוזמנים ל-Firebase`;
+      document.getElementById("btn-commit-import-text").textContent = updates
+        ? `שמור ${eligible.length - updates} חדשים ועדכן ${updates} קיימים`
+        : `שמור ${eligible.length} מוזמנים ל-Firebase`;
       btn.disabled = eligible.length === 0;
     }
 
@@ -2364,6 +2494,7 @@ service cloud.firestore {
         "צד": g.side,
         "קבוצה": g.group,
         "מוזמנים": g.invitedCount,
+        "שמות נוספים בהזמנה": Array.isArray(g.additionalGuestNames) ? g.additionalGuestNames.join(" | ") : "",
         "אישרו בפועל": g.confirmedCount,
         "סטטוס": (STATUS_MAP[g.status] || STATUS_MAP.pending).label,
         "שולחן": g.tableNumber || "",
@@ -2571,6 +2702,26 @@ service cloud.firestore {
     document.getElementById("btn-export-excel").addEventListener("click", exportGuestsExcel);
 
     // Add / Edit Guest Modal
+    let additionalGuestNamesDraft = [];
+
+    function renderAdditionalGuestNameFields() {
+      const invitedCount = Math.max(1, Math.min(30, Number(document.getElementById("gf-invitedCount").value) || 1));
+      const additionalCount = invitedCount - 1;
+      const section = document.getElementById("additional-guests-section");
+      const fields = document.getElementById("additional-guest-name-fields");
+
+      section.classList.toggle("hidden", additionalCount === 0);
+      fields.innerHTML = Array.from({ length: additionalCount }, (_, index) => `
+        <div>
+          <label for="gf-additional-name-${index}" class="block text-xs font-medium text-stone-700 mb-1">שם מוזמן נוסף ${index + 1}</label>
+          <input id="gf-additional-name-${index}" data-additional-guest-index="${index}" type="text" maxlength="100"
+            value="${escapeHtml(additionalGuestNamesDraft[index] || "")}"
+            placeholder="שם בן/בת הזוג או בן המשפחה"
+            class="w-full px-3 py-2.5 rounded-xl border border-stone-300 bg-white focus:border-amber-500 outline-none text-sm" />
+        </div>
+      `).join("");
+    }
+
     function openGuestModal(guest = null) {
       document.getElementById("guest-modal-title").textContent = guest ? "עריכת פרטי מוזמן" : "הוספת מוזמן חדש";
       document.getElementById("gf-id").value = guest?.id || "";
@@ -2580,13 +2731,17 @@ service cloud.firestore {
       document.getElementById("gf-status").value = guest?.status || "pending";
       document.getElementById("gf-side").value = guest?.side || "חתן";
       document.getElementById("gf-group").value = guest?.group || "משפחה";
-      document.getElementById("gf-invitedCount").value = guest?.invitedCount || 2;
+      document.getElementById("gf-invitedCount").value = guest?.invitedCount || 1;
       document.getElementById("gf-confirmedCount").value = guest?.confirmedCount ?? 0;
       document.getElementById("gf-tableNumber").value = guest?.tableNumber || "";
       document.getElementById("gf-notes").value = guest?.notes || "";
       document.getElementById("gf-inviteSent").checked = Boolean(guest?.inviteSent);
       document.getElementById("gf-reminder7dSent").checked = Boolean(guest?.reminder7dSent);
       document.getElementById("gf-reminder24hSent").checked = Boolean(guest?.reminder24hSent);
+      additionalGuestNamesDraft = Array.isArray(guest?.additionalGuestNames)
+        ? guest.additionalGuestNames.map((name) => String(name || ""))
+        : [];
+      renderAdditionalGuestNameFields();
       document.getElementById("guest-modal").classList.remove("hidden");
       refreshIcons();
     }
@@ -2595,6 +2750,20 @@ service cloud.firestore {
     document.getElementById("btn-add-guest").addEventListener("click", () => openGuestModal(null));
     document.getElementById("close-guest-modal").addEventListener("click", closeGuestModal);
     document.getElementById("cancel-guest-modal").addEventListener("click", closeGuestModal);
+    document.getElementById("gf-invitedCount").addEventListener("input", renderAdditionalGuestNameFields);
+    document.getElementById("btn-add-additional-guest").addEventListener("click", () => {
+      const invitedCount = Math.max(1, Number(document.getElementById("gf-invitedCount").value) || 1);
+      if (invitedCount >= 30) {
+        showToast("אפשר להוסיף עד 30 מוזמנים בהזמנה אחת", "error");
+        return;
+      }
+      document.getElementById("gf-invitedCount").value = invitedCount + 1;
+      renderAdditionalGuestNameFields();
+    });
+    document.getElementById("additional-guest-name-fields").addEventListener("input", (event) => {
+      const index = Number(event.target.dataset.additionalGuestIndex);
+      if (Number.isInteger(index) && index >= 0) additionalGuestNamesDraft[index] = event.target.value;
+    });
 
     document.getElementById("gf-status").addEventListener("change", (e) => {
       const inv = parseInt(document.getElementById("gf-invitedCount").value, 10) || 1;
@@ -2605,12 +2774,14 @@ service cloud.firestore {
 
     document.getElementById("guest-form").addEventListener("submit", async (e) => {
       e.preventDefault();
-      const phoneRes = normalizeIsraeliPhone(document.getElementById("gf-phone").value);
+      const rawPhone = document.getElementById("gf-phone").value.trim();
+      const phoneRes = rawPhone ? normalizeIsraeliPhone(rawPhone) : { valid: true, normalized: "" };
       if (!phoneRes.valid) {
         showToast("אנא הזינו מספר טלפון נייד ישראלי תקין (למשל 050-1234567)", "error");
         return;
       }
       const existingId = document.getElementById("gf-id").value || null;
+      const invitedCount = Math.max(1, Number(document.getElementById("gf-invitedCount").value) || 1);
       try {
         await saveGuest({
           fullName: document.getElementById("gf-fullName").value,
@@ -2619,7 +2790,11 @@ service cloud.firestore {
           status: document.getElementById("gf-status").value,
           side: document.getElementById("gf-side").value,
           group: document.getElementById("gf-group").value,
-          invitedCount: document.getElementById("gf-invitedCount").value,
+          invitedCount,
+          additionalGuestNames: additionalGuestNamesDraft
+            .slice(0, invitedCount - 1)
+            .map((name) => String(name || "").trim())
+            .filter(Boolean),
           confirmedCount: document.getElementById("gf-confirmedCount").value,
           tableNumber: document.getElementById("gf-tableNumber").value,
           notes: document.getElementById("gf-notes").value,
@@ -2763,11 +2938,15 @@ service cloud.firestore {
 
     document.getElementById("btn-commit-import").addEventListener("click", async () => {
       const skipDups = document.getElementById("import-skip-dups").checked;
-      const toSave = state.importRows.filter((r) => r.vStatus === "valid" || (!skipDups && r.vStatus === "duplicate"));
+      const toSave = state.importRows.filter((r) =>
+        r.vStatus === "valid" || r.vStatus === "update" || (!skipDups && r.vStatus === "duplicate")
+      );
       if (!toSave.length) return;
 
       const btn = document.getElementById("btn-commit-import");
       btn.disabled = true;
+      const updatedCount = toSave.filter((r) => r.vStatus === "update").length;
+      const addedCount = toSave.length - updatedCount;
 
       try {
         // Chunk by 400 to respect Firestore 500-write batch limit
@@ -2775,11 +2954,20 @@ service cloud.firestore {
           const chunk = toSave.slice(i, i + 400);
           const batch = writeBatch(db);
           chunk.forEach((r) => {
+            if (r.vStatus === "update") {
+              const patch = { updatedAt: serverTimestamp() };
+              if (r.updatePhone) patch.phone = r.normalizedPhone;
+              if (r.updateInvitedCount) patch.invitedCount = r.invitedCount;
+              if (r.updateAdditionalGuestNames) patch.additionalGuestNames = r.additionalGuestNames;
+              batch.update(doc(db, "guests", r.matchingGuestId), patch);
+              return;
+            }
             const ref = doc(db, "guests", generateGuestId());
             batch.set(ref, {
               fullName: r.fullName,
               greetingName: r.greetingName || r.fullName,
               phone: r.normalizedPhone,
+              additionalGuestNames: r.additionalGuestNames,
               side: r.side,
               group: r.group,
               invitedCount: r.invitedCount,
@@ -2799,7 +2987,7 @@ service cloud.firestore {
         state.importRows = [];
         document.getElementById("import-paste-input").value = "";
         renderImportPreview();
-        showToast(`נשמרו בהצלחה ${toSave.length} מוזמנים ל-Firebase!`, "success");
+        showToast(`נוספו ${addedCount} מוזמנים ועודכנו ${updatedCount} הזמנות קיימות`, "success");
         switchAdminTab("guests");
       } catch (err) {
         console.error("Batch import error:", err);
@@ -2876,6 +3064,10 @@ service cloud.firestore {
 
     document.getElementById("btn-wa-test-open").addEventListener("click", () => {
       const guest = getSelectedPreviewGuest();
+      if (!guest.phone) {
+        showToast("הוסיפו מספר טלפון למוזמן לפני פתיחת WhatsApp", "error");
+        return;
+      }
       const text = renderTemplateText(document.getElementById("template-textarea").value, guest);
       window.open(`https://wa.me/${guest.phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     });
