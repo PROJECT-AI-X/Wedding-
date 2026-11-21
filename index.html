@@ -1,0 +1,2995 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ניהול מוזמנים ואישורי הגעה לחתונה</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Heebo (Modern Hebrew UI) & Frank Ruhl Libre (Editorial Invitation Headings) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- SheetJS CDN for Excel (.xlsx/.xls) & CSV Import/Export -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+  <!-- Tailwind Custom Theme Configuration -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Heebo', 'sans-serif'],
+            serif: ['Frank Ruhl Libre', 'serif'],
+          },
+          colors: {
+            ivory: '#FAF8F4',
+            champagne: {
+              50: '#FDFBF7',
+              100: '#F7F0E2',
+              200: '#EEDEC0',
+              300: '#E1C593',
+              400: '#D2A55F',
+              500: '#C28B3C',
+              600: '#A6702B',
+              700: '#865624',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Heebo', sans-serif;
+      background-color: #FAF8F4;
+      color: #1C1917;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-editorial {
+      font-family: 'Frank Ruhl Libre', serif;
+    }
+
+    /* WhatsApp chat mockup subtle wallpaper */
+    .wa-chat-bg {
+      background-color: #EFEAE2;
+      background-image: radial-gradient(#D5CEC4 0.75px, transparent 0.75px);
+      background-size: 16px 16px;
+    }
+
+    /* Smooth entry animation */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-up {
+      animation: fadeUp 0.25s ease-out forwards;
+    }
+
+    /* Hide horizontal scrollbar on tab strips */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Invitation subtle gold frame shadow */
+    .invitation-card {
+      background: linear-gradient(180deg, #FFFFFF 0%, #FDFBF7 100%);
+      box-shadow: 0 24px 60px -15px rgba(28, 25, 23, 0.14), 0 0 0 1px rgba(194, 139, 60, 0.24);
+    }
+  </style>
+</head>
+<body class="min-h-screen overflow-x-hidden selection:bg-amber-200 selection:text-stone-900">
+
+  <!-- ===================================================================== -->
+  <!-- 1. GLOBAL LOADING OVERLAY                                             -->
+  <!-- ===================================================================== -->
+  <div id="app-loader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-ivory/95 backdrop-blur-sm transition-opacity duration-300">
+    <div class="w-12 h-12 rounded-full border-4 border-amber-200 border-t-amber-600 animate-spin mb-4"></div>
+    <p id="app-loader-text" class="text-sm font-medium text-stone-700">מתחבר ל-Firebase ומסנכרן נתונים...</p>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 2. TOAST NOTIFICATION CONTAINER                                       -->
+  <!-- ===================================================================== -->
+  <div id="toast-container" class="fixed bottom-4 left-4 right-4 sm:left-6 sm:right-auto sm:max-w-sm z-[70] flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- 3. CUSTOM CONFIRMATION DIALOG (REPLACES confirm())                    -->
+  <!-- ===================================================================== -->
+  <div id="confirm-modal" class="hidden fixed inset-0 z-[65] flex items-center justify-center bg-stone-900/55 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-2xl border border-stone-200 max-w-md w-full p-6 animate-fade-up">
+      <div class="flex items-start gap-3">
+        <div id="confirm-icon-wrap" class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+          <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 id="confirm-title" class="text-lg font-bold text-stone-900">אישור פעולה</h3>
+          <p id="confirm-message" class="text-sm text-stone-600 mt-1 leading-relaxed"></p>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 mt-6">
+        <button id="confirm-cancel-btn" type="button" class="px-4 py-2.5 rounded-xl text-sm font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 transition">ביטול</button>
+        <button id="confirm-ok-btn" type="button" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 transition">אישור</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 4. FIREBASE RULES & GITHUB SETUP HELPER MODAL                         -->
+  <!-- ===================================================================== -->
+  <div id="rules-modal" class="hidden fixed inset-0 z-[65] flex items-center justify-center bg-stone-900/55 backdrop-blur-xs p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl border border-stone-200 max-w-2xl w-full p-6 my-8 animate-fade-up space-y-4">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-5 h-5 text-amber-600"></i>
+          <h3 class="text-lg font-bold text-stone-900">הגדרת חוקי אבטחה ב-Firestore ודומיינים מורשים</h3>
+        </div>
+        <button id="close-rules-modal" type="button" class="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="text-sm text-stone-600 space-y-2 leading-relaxed">
+        <p><strong>1. חוקי Firestore Rules:</strong> ב-Firebase Console עברו ל-<strong>Firestore Database → Rules</strong> והדביקו את הכללים הבאים. הרשאה ניתנת לשני החשבונות המוגדרים בלבד:</p>
+      </div>
+
+      <div class="relative">
+        <pre id="firestore-rules-code" dir="ltr" class="text-xs bg-stone-900 text-amber-100 p-4 rounded-xl overflow-x-auto leading-relaxed font-mono">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isCoupleAdmin() {
+      return request.auth != null &amp;&amp; request.auth.token.email in [
+        'reemkayzer@gmail.com',
+        'mayaco21@gmail.com'
+      ];
+    }
+
+    match /settings/wedding {
+      allow read: if true;
+      allow write: if isCoupleAdmin();
+    }
+
+    match /guests/{guestId} {
+      allow read: if true;
+      allow create, delete: if isCoupleAdmin();
+      allow update: if isCoupleAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'confirmedCount', 'notes', 'rsvpUpdatedAt'])
+      );
+    }
+  }
+}</pre>
+        <button id="btn-copy-rules" type="button" class="absolute top-2.5 right-2.5 px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-semibold transition flex items-center gap-1.5">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span>העתק חוקים</span>
+        </button>
+      </div>
+
+      <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-950 space-y-1.5 leading-relaxed">
+        <p><strong>2. הפעלת התחברות אימייל/סיסמה:</strong></p>
+        <p>ב-Firebase Console עברו ל-<strong>Authentication → Sign-in method</strong> והפעילו <strong>Email/Password</strong>.</p>
+        <p>לאחר מכן הוסיפו ב-<strong>Authentication → Users</strong> את שני החשבונות: <span dir="ltr" class="font-mono font-bold">reemkayzer@gmail.com</span> ו-<span dir="ltr" class="font-mono font-bold">mayaco21@gmail.com</span>.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 5. ADMIN SIGN-IN VIEW (EMAIL/PASSWORD AUTH)                           -->
+  <!-- ===================================================================== -->
+  <section id="auth-view" class="hidden min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-champagne-50 via-ivory to-stone-100">
+    <div class="invitation-card rounded-3xl max-w-md w-full p-8 text-center space-y-6 animate-fade-up">
+      <div class="w-16 h-16 rounded-2xl bg-stone-900 text-amber-400 mx-auto flex items-center justify-center shadow-lg">
+        <i data-lucide="heart-handshake" class="w-8 h-8"></i>
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-xs font-semibold tracking-widest uppercase text-amber-700">Wedding Guest Manager</p>
+        <h1 class="font-editorial text-3xl font-bold text-stone-900">התחברות לניהול החתונה</h1>
+        <p class="text-sm text-stone-600 leading-relaxed">
+          התחברו באמצעות החשבון הפרטי שלכם כדי לנהל את רשימת המוזמנים ולצפות באישורי הגעה בסנכרון חי.
+        </p>
+      </div>
+
+      <!-- Auth Error Alert Box -->
+      <div id="auth-error-box" class="hidden text-right bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4 text-xs leading-relaxed space-y-1.5">
+        <p class="font-bold flex items-center gap-1.5">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+          <span>שגיאת התחברות</span>
+        </p>
+        <p id="auth-error-text"></p>
+      </div>
+
+      <form id="email-signin-form" class="space-y-3 text-right" dir="rtl">
+        <label class="block">
+          <span class="block text-xs font-semibold text-stone-700 mb-1.5">כתובת מייל</span>
+          <input id="signin-email" type="email" autocomplete="username" required dir="ltr"
+            class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+            placeholder="name@gmail.com" />
+        </label>
+        <label class="block">
+          <span class="block text-xs font-semibold text-stone-700 mb-1.5">סיסמה</span>
+          <input id="signin-password" type="password" autocomplete="current-password" required
+            class="w-full px-4 py-3 rounded-xl border border-stone-200 bg-white text-stone-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+            placeholder="הסיסמה האישית" />
+        </label>
+        <button id="btn-email-signin" type="submit" class="w-full py-3.5 px-5 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white font-semibold text-sm shadow-md transition active:scale-[0.99]">
+          התחברות
+        </button>
+      </form>
+
+      <div class="pt-3 border-t border-stone-100 flex items-center justify-between text-xs text-stone-500">
+        <span>פרויקט: <code dir="ltr" class="font-mono text-stone-700">wedding-f8c29</code></span>
+        <button id="btn-open-rules-auth" type="button" class="text-amber-700 hover:text-amber-800 font-semibold underline">מדריך הגדרת הרשאות</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- 6. ADMIN DASHBOARD VIEW                                               -->
+  <!-- ===================================================================== -->
+  <div id="admin-view" class="hidden min-h-screen flex flex-col">
+
+    <!-- Top Sticky Header -->
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-stone-200/80">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex flex-wrap items-center justify-between py-3 gap-3">
+
+          <!-- Left/Right Brand & Sync Status -->
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 rounded-xl bg-stone-900 text-amber-400 flex items-center justify-center shadow-xs shrink-0">
+              <i data-lucide="sparkles" class="w-5 h-5"></i>
+            </div>
+            <div class="min-w-0">
+              <h1 id="header-couple-names" class="font-editorial text-xl font-bold text-stone-900 truncate leading-tight">החתונה שלנו</h1>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span id="live-sync-pill" class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  <span>מחובר ומסונכרן בזמן אמת</span>
+                </span>
+                <span id="header-event-date" class="text-xs text-stone-500 hidden md:inline"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Profile & Logout -->
+          <div class="flex items-center gap-2.5">
+            <button id="btn-open-rules-header" type="button" title="הגדרת חוקי Firestore ו-GitHub" class="p-2 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-600 transition">
+              <i data-lucide="shield-check" class="w-4 h-4 text-amber-600"></i>
+            </button>
+
+            <div class="flex items-center gap-2.5 bg-stone-50 border border-stone-200/80 rounded-2xl py-1.5 px-2.5">
+              <img id="user-avatar-img" src="" alt="" class="hidden w-7 h-7 rounded-full object-cover border border-stone-200" />
+              <div id="user-avatar-fallback" class="w-7 h-7 rounded-full bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center">א</div>
+              <div class="hidden sm:block text-right leading-tight max-w-[160px]">
+                <p id="user-display-name" class="text-xs font-bold text-stone-900 truncate">מנהל</p>
+                <p id="user-email" dir="ltr" class="text-[11px] text-stone-500 truncate"></p>
+              </div>
+              <button id="btn-logout" type="button" title="התנתק" class="p-1.5 rounded-lg text-stone-500 hover:text-rose-600 hover:bg-rose-50 transition">
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 Main Navigation Tabs -->
+        <nav class="flex items-center gap-1 overflow-x-auto no-scrollbar -mb-px" aria-label="תפריט ניהול">
+          <button data-tab="guests" class="admin-tab whitespace-nowrap flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-stone-900 text-stone-900 transition">
+            <i data-lucide="users" class="w-4 h-4"></i>
+            <span>מוזמנים</span>
+            <span id="nav-badge-count" class="px-2 py-0.5 rounded-full text-xs font-bold bg-stone-100 text-stone-700">0</span>
+          </button>
+
+          <button data-tab="import" class="admin-tab whitespace-nowrap flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-stone-500 hover:text-stone-800 transition">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+            <span>ייבוא נתונים (Excel / Sheets)</span>
+          </button>
+
+          <button data-tab="templates" class="admin-tab whitespace-nowrap flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-stone-500 hover:text-stone-800 transition">
+            <i data-lucide="message-circle" class="w-4 h-4"></i>
+            <span>תבניות WhatsApp והגדרות אירוע</span>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Permission-Denied Diagnostic Banner (Hidden unless Firestore blocks access) -->
+    <div id="permission-error-banner" class="hidden max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-5">
+      <div class="bg-rose-50 border-2 border-rose-200 rounded-2xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+            <i data-lucide="shield-alert" class="w-5 h-5"></i>
+          </div>
+          <div class="space-y-1 text-sm">
+            <h3 class="font-bold text-rose-950">נדרשת הרשאת גישה ב-Firestore Rules (permission-denied)</h3>
+            <p class="text-rose-800 leading-relaxed">
+              אתם מחוברים כרגע עם המייל <strong id="diag-user-email" dir="ltr" class="font-mono bg-white px-1.5 py-0.5 rounded border border-rose-200"></strong>, אך חוקי האבטחה בפרויקט <code dir="ltr" class="font-mono">wedding-f8c29</code> עדיין לא מאשרים למייל זה לקרוא/לכתוב נתונים.
+            </p>
+            <p class="text-xs text-rose-700">
+              ודאו שיצרתם <strong>Firestore Database</strong> ב-Firebase Console, הוספתם את כתובת המייל הזו (ושל בת הזוג) ב-Rules, ושהדומיין מוגדר ב-Authorized Domains.
+            </p>
+          </div>
+        </div>
+        <button id="btn-diag-open-rules" type="button" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shrink-0 transition">
+          הצג חוקי Firestore להעתקה
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Admin Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+      <!-- ================================================================= -->
+      <!-- TAB 1: GUESTS DASHBOARD                                           -->
+      <!-- ================================================================= -->
+      <section id="panel-guests" class="tab-panel space-y-6 animate-fade-up">
+
+        <!-- 4 Live KPI Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <!-- KPI 1: Total Invited -->
+          <div class="bg-white rounded-2xl p-4 sm:p-5 border border-stone-200/80 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs sm:text-sm font-medium text-stone-500">סה״כ מוזמנים</span>
+              <span class="w-8 h-8 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center">
+                <i data-lucide="users" class="w-4 h-4"></i>
+              </span>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <span id="kpi-total-people" class="text-2xl sm:text-3xl font-extrabold text-stone-900">0</span>
+              <span class="text-xs text-stone-500">אנשים</span>
+            </div>
+            <p id="kpi-total-records" class="text-xs text-stone-400 mt-1">0 רשומות ברשימה</p>
+          </div>
+
+          <!-- KPI 2: Confirmed -->
+          <div class="bg-white rounded-2xl p-4 sm:p-5 border border-emerald-200/80 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs sm:text-sm font-medium text-emerald-700">אישרו הגעה</span>
+              <span class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+              </span>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <span id="kpi-confirmed-people" class="text-2xl sm:text-3xl font-extrabold text-emerald-700">0</span>
+              <span id="kpi-confirmed-pct" class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">0%</span>
+            </div>
+            <p id="kpi-confirmed-records" class="text-xs text-stone-500 mt-1">0 רשומות מאושרות</p>
+          </div>
+
+          <!-- KPI 3: Pending & Maybe -->
+          <div class="bg-white rounded-2xl p-4 sm:p-5 border border-amber-200/80 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs sm:text-sm font-medium text-amber-800">טרם ענו</span>
+              <span class="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <i data-lucide="clock" class="w-4 h-4"></i>
+              </span>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <span id="kpi-pending-people" class="text-2xl sm:text-3xl font-extrabold text-amber-700">0</span>
+              <span class="text-xs text-stone-500">אנשים</span>
+            </div>
+            <p id="kpi-pending-records" class="text-xs text-stone-500 mt-1">0 טרם ענו • 0 מתלבטים</p>
+          </div>
+
+          <!-- KPI 4: Declined -->
+          <div class="bg-white rounded-2xl p-4 sm:p-5 border border-rose-200/80 shadow-xs">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs sm:text-sm font-medium text-rose-700">לא מגיעים</span>
+              <span class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <i data-lucide="x-circle" class="w-4 h-4"></i>
+              </span>
+            </div>
+            <div class="flex items-baseline gap-2">
+              <span id="kpi-declined-people" class="text-2xl sm:text-3xl font-extrabold text-rose-700">0</span>
+              <span class="text-xs text-stone-500">אנשים</span>
+            </div>
+            <p id="kpi-declined-records" class="text-xs text-stone-500 mt-1">0 רשומות סירבו</p>
+          </div>
+        </div>
+
+        <!-- Action Bar & Search / Filters -->
+        <div class="bg-white rounded-2xl p-4 border border-stone-200/80 shadow-xs space-y-3.5">
+          <div class="flex flex-wrap items-center justify-between gap-2.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <button id="btn-add-guest" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold shadow-xs transition active:scale-[0.99]">
+                <i data-lucide="plus" class="w-4 h-4 text-amber-400"></i>
+                <span>הוסף מוזמן</span>
+              </button>
+
+              <button id="btn-export-excel" type="button" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-stone-50 text-stone-700 border border-stone-200 text-sm font-medium transition">
+                <i data-lucide="download" class="w-4 h-4 text-emerald-600"></i>
+                <span>ייצוא ל-Excel</span>
+              </button>
+
+              <button id="btn-load-sample-toolbar" type="button" class="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-sm font-semibold transition">
+                <i data-lucide="wand-2" class="w-4 h-4 text-amber-700"></i>
+                <span>טען את רשימת המוזמנים</span>
+              </button>
+            </div>
+
+            <span id="filtered-count-label" class="text-xs font-medium text-stone-500"></span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 pt-2.5 border-t border-stone-100">
+            <div class="relative lg:col-span-6">
+              <i data-lucide="search" class="w-4 h-4 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+              <input id="filter-search" type="text" placeholder="חיפוש לפי שם, טלפון, קבוצה, שולחן או הערות..." class="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition" />
+            </div>
+
+            <div class="lg:col-span-3">
+              <select id="filter-status" class="w-full px-3 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm text-stone-700 focus:bg-white focus:border-amber-500 outline-none">
+                <option value="all">כל הסטטוסים</option>
+                <option value="confirmed">מגיע</option>
+                <option value="pending">טרם ענה</option>
+                <option value="maybe">מתלבט / אולי</option>
+                <option value="declined">לא מגיע</option>
+              </select>
+            </div>
+
+            <div class="lg:col-span-3 flex gap-2">
+              <select id="filter-side" class="w-full px-3 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm text-stone-700 focus:bg-white focus:border-amber-500 outline-none">
+                <option value="all">כל הצדדים</option>
+                <option value="חתן">צד חתן</option>
+                <option value="כלה">צד כלה</option>
+                <option value="משותף">משותף</option>
+              </select>
+              <button id="btn-clear-filters" type="button" class="px-3 py-2.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-xs font-medium text-stone-600 shrink-0 transition">נקה</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="guests-empty-state" class="hidden bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
+            <i data-lucide="users" class="w-8 h-8"></i>
+          </div>
+          <div class="max-w-md mx-auto">
+            <h3 class="text-lg font-bold text-stone-900">הרשימה ב-Firebase עדיין ריקה</h3>
+            <p class="text-sm text-stone-500 mt-1">אפשר לייבא קובץ Excel/Sheets, להוסיף מוזמן ידנית או לטעון את רשימת החתונה המאוחדת.</p>
+          </div>
+          <div class="flex flex-wrap items-center justify-center gap-3 pt-1">
+            <button id="btn-load-sample-empty" type="button" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold shadow-sm transition">
+              <i data-lucide="wand-2" class="w-4 h-4 text-amber-400"></i>
+              <span>טען את רשימת החתונה ל-Firebase</span>
+            </button>
+            <button id="btn-empty-goto-import" type="button" class="px-5 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-sm font-semibold transition">
+              ייבוא מאקסל / Sheets
+            </button>
+          </div>
+        </div>
+
+        <!-- No Search Matches -->
+        <div id="guests-no-matches" class="hidden bg-white rounded-2xl border border-stone-200 p-8 text-center space-y-2">
+          <p class="text-sm font-semibold text-stone-700">לא נמצאו מוזמנים התואמים לחיפוש או לסינון.</p>
+          <button id="btn-reset-no-matches" type="button" class="text-xs font-semibold text-amber-700 underline">איפוס סינון</button>
+        </div>
+
+        <!-- Desktop Table -->
+        <div id="guests-table-container" class="hidden lg:block bg-white rounded-2xl border border-stone-200/80 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-right border-collapse">
+              <thead>
+                <tr class="bg-stone-50/90 border-b border-stone-200 text-xs font-semibold text-stone-500">
+                  <th class="py-3.5 px-4">מוזמן / פנייה</th>
+                  <th class="py-3.5 px-3">טלפון</th>
+                  <th class="py-3.5 px-3">שיוך</th>
+                  <th class="py-3.5 px-3 text-center">אישרו / מוזמנים</th>
+                  <th class="py-3.5 px-3">סטטוס</th>
+                  <th class="py-3.5 px-3">שולחן והערות</th>
+                  <th class="py-3.5 px-3 text-center">דגלי שליחה (לחץ לשינוי)</th>
+                  <th class="py-3.5 px-4 text-left">פעולות</th>
+                </tr>
+              </thead>
+              <tbody id="guests-table-body" class="divide-y divide-stone-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Mobile / Tablet Cards -->
+        <div id="guests-cards-container" class="lg:hidden space-y-3"></div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- TAB 2: IMPORT DATA (EXCEL / CSV / GOOGLE SHEETS)                  -->
+      <!-- ================================================================= -->
+      <section id="panel-import" class="tab-panel hidden space-y-6 animate-fade-up">
+        <div class="bg-white rounded-2xl border border-stone-200/80 shadow-xs p-5 sm:p-6 space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-stone-900">ייבוא חכם מאקסל, CSV או Google Sheets</h2>
+              <p class="text-sm text-stone-500 mt-1">ניקוי אוטומטי של מספרים ישראליים לפורמט <span dir="ltr" class="font-mono text-xs font-semibold">9725XXXXXXXX</span>, בדיקת תקינות וזיהוי כפילויות מול הנתונים הקיימים ב-Firebase.</p>
+            </div>
+            <button id="btn-download-sample-xlsx" type="button" class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-sm font-semibold shrink-0 transition">
+              <i data-lucide="file-down" class="w-4 h-4"></i>
+              <span>הורד קובץ אקסל לדוגמה</span>
+            </button>
+          </div>
+
+          <!-- Source Switcher -->
+          <div class="inline-flex p-1 rounded-xl bg-stone-100 border border-stone-200/70">
+            <button id="btn-import-tab-file" type="button" class="px-4 py-2 rounded-lg text-sm font-semibold bg-white text-stone-900 shadow-xs transition">העלאת קובץ (.xlsx / .csv)</button>
+            <button id="btn-import-tab-paste" type="button" class="px-4 py-2 rounded-lg text-sm font-medium text-stone-600 hover:text-stone-900 transition">הדבקה מ-Google Sheets</button>
+          </div>
+
+          <!-- File Drop Zone -->
+          <div id="import-box-file">
+            <label id="import-drop-zone" for="import-file-input" class="flex flex-col items-center justify-center border-2 border-dashed border-stone-300 hover:border-amber-500 bg-stone-50/70 hover:bg-amber-50/30 rounded-2xl p-8 sm:p-12 cursor-pointer transition text-center">
+              <div class="w-14 h-14 rounded-2xl bg-white border border-stone-200 shadow-xs flex items-center justify-center text-amber-600 mb-3">
+                <i data-lucide="upload-cloud" class="w-7 h-7"></i>
+              </div>
+              <p class="text-base font-semibold text-stone-800">גררו לכאן קובץ Excel או CSV, או לחצו לבחירה</p>
+              <p class="text-xs text-stone-500 mt-1">עמודות מזוהות: שם מלא, שם להודעה, טלפון, צד, קבוצה, כמות מוזמנים, שולחן, הערות</p>
+              <input id="import-file-input" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+            </label>
+          </div>
+
+          <!-- Google Sheets Paste Area -->
+          <div id="import-box-paste" class="hidden space-y-3">
+            <div class="bg-stone-50 border border-stone-200 rounded-xl p-3 text-xs text-stone-600 leading-relaxed">
+              סמנו את הטבלה ב-Google Sheets או באקסל (כולל שורת הכותרות), לחצו <kbd class="px-1.5 py-0.5 bg-white border rounded font-mono">Ctrl+C</kbd> והדביקו כאן:
+            </div>
+            <textarea id="import-paste-input" rows="7" placeholder="שם מלא	שם להודעה	טלפון	צד	קבוצה	כמות מוזמנים	שולחן
+משה ורחל כהן	דוד משה ודודה רחל	050-1234567	חתן	משפחה	2	4
+יובל לוי	יובלי	0529876543	כלה	חברים	2	11" class="w-full p-3.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm font-mono"></textarea>
+            <div class="flex justify-end">
+              <button id="btn-parse-paste" type="button" class="px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold transition">בדוק והצג תצוגה מקדימה</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Import Validation Preview -->
+        <div id="import-preview-section" class="hidden bg-white rounded-2xl border border-stone-200/80 shadow-xs p-5 sm:p-6 space-y-4 animate-fade-up">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-stone-100 pb-4">
+            <div>
+              <h3 class="text-lg font-bold text-stone-900">תצוגה מקדימה ואימות נתונים</h3>
+              <div class="flex flex-wrap items-center gap-2 mt-2">
+                <span id="import-badge-valid" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">0 תקינים</span>
+                <span id="import-badge-dup" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800">0 כפילויות</span>
+                <span id="import-badge-invalid" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800">0 טלפון/שם שגוי</span>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-3">
+              <label class="inline-flex items-center gap-2 text-sm text-stone-700 cursor-pointer bg-stone-50 px-3 py-2 rounded-xl border border-stone-200">
+                <input id="import-skip-dups" type="checkbox" checked class="w-4 h-4 accent-amber-600 rounded" />
+                <span>דלג על כפילויות</span>
+              </label>
+              <button id="btn-clear-import" type="button" class="px-4 py-2.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 text-sm font-medium transition">נקה</button>
+              <button id="btn-commit-import" type="button" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm font-semibold shadow-sm transition">
+                <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+                <span id="btn-commit-import-text">שמור ל-Firebase</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto max-h-96 overflow-y-auto rounded-xl border border-stone-200">
+            <table class="w-full text-right text-xs sm:text-sm border-collapse">
+              <thead class="sticky top-0 bg-stone-100 text-stone-600 font-semibold border-b border-stone-200">
+                <tr>
+                  <th class="py-2.5 px-3">סטטוס</th>
+                  <th class="py-2.5 px-3">שם מלא</th>
+                  <th class="py-2.5 px-3">שם להודעה</th>
+                  <th class="py-2.5 px-3">טלפון מקורי ← מנורמל</th>
+                  <th class="py-2.5 px-3">צד / קבוצה</th>
+                  <th class="py-2.5 px-3 text-center">כמות</th>
+                  <th class="py-2.5 px-3">שולחן</th>
+                </tr>
+              </thead>
+              <tbody id="import-preview-body" class="divide-y divide-stone-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- TAB 3: WHATSAPP TEMPLATES & WEDDING SETTINGS                      -->
+      <!-- ================================================================= -->
+      <section id="panel-templates" class="tab-panel hidden space-y-6 animate-fade-up">
+
+        <!-- A. Live Readiness Summary for 3 Automation Rounds -->
+        <div class="bg-white rounded-2xl border border-stone-200/80 shadow-xs p-5 sm:p-6 space-y-4">
+          <div>
+            <h2 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+              <i data-lucide="activity" class="w-5 h-5 text-emerald-600"></i>
+              <span>סטטוס מוכנות לסבבי שליחה אוטומטיים ב-WhatsApp</span>
+            </h2>
+            <p class="text-xs sm:text-sm text-stone-500 mt-0.5">כמות המוזמנים הזכאים כרגע לכל סבב לפי הסטטוס והדגלים ב-Firestore (מסרבים מדולגים אוטומטית).</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="rounded-2xl border border-stone-200 bg-stone-50/70 p-4">
+              <span class="text-xs font-bold text-stone-600">סבב 1 • הזמנה ראשונית</span>
+              <div class="mt-1.5 flex items-baseline gap-1.5">
+                <span id="ready-invite-count" class="text-2xl font-extrabold text-stone-900">0</span>
+                <span class="text-xs text-stone-500">ממתינים לשליחה</span>
+              </div>
+              <p id="ready-invite-done" class="text-[11px] text-stone-400 mt-1">נשלחה כבר ל-0 מוזמנים</p>
+            </div>
+
+            <div class="rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
+              <span class="text-xs font-bold text-amber-900">סבב 2א • תזכורת שבוע (טרם ענו)</span>
+              <div class="mt-1.5 flex items-baseline gap-1.5">
+                <span id="ready-7d-pending-count" class="text-2xl font-extrabold text-amber-800">0</span>
+                <span class="text-xs text-stone-600">זכאים</span>
+              </div>
+              <p class="text-[11px] text-stone-500 mt-1">סטטוס "טרם ענה" או "מתלבט"</p>
+            </div>
+
+            <div class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+              <span class="text-xs font-bold text-emerald-900">סבב 2ב • תזכורת שבוע (מאשרים)</span>
+              <div class="mt-1.5 flex items-baseline gap-1.5">
+                <span id="ready-7d-confirmed-count" class="text-2xl font-extrabold text-emerald-800">0</span>
+                <span class="text-xs text-stone-600">זכאים</span>
+              </div>
+              <p class="text-[11px] text-stone-500 mt-1">הודעת התרגשות למאשרי הגעה</p>
+            </div>
+
+            <div class="rounded-2xl border border-sky-200 bg-sky-50/50 p-4">
+              <span class="text-xs font-bold text-sky-900">סבב 3 • תזכורת 24 שעות</span>
+              <div class="mt-1.5 flex items-baseline gap-1.5">
+                <span id="ready-24h-count" class="text-2xl font-extrabold text-sky-800">0</span>
+                <span class="text-xs text-stone-600">זכאים</span>
+              </div>
+              <p class="text-[11px] text-stone-500 mt-1">מאשרי הגעה בלבד + Waze ושולחן</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- B. Wedding Details Form (settings/wedding) -->
+        <form id="wedding-settings-form" class="bg-white rounded-2xl border border-stone-200/80 shadow-xs p-5 sm:p-6 space-y-5">
+          <div class="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 pb-4">
+            <div>
+              <h3 class="text-lg font-bold text-stone-900">פרטי החתונה (<code dir="ltr" class="text-xs font-mono text-amber-700">settings/wedding</code>)</h3>
+              <p class="text-xs sm:text-sm text-stone-500 mt-0.5">הפרטים כאן מוזרקים אוטומטית לדף ה-RSVP של כל האורחים ולמשתני תבניות ה-WhatsApp.</p>
+            </div>
+            <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold shadow-xs transition">
+              <i data-lucide="save" class="w-4 h-4 text-amber-400"></i>
+              <span>שמור הגדרות</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label for="ws-coupleNames" class="block text-xs font-semibold text-stone-700 mb-1.5">שמות בני הזוג / כותרת</label>
+              <input id="ws-coupleNames" type="text" required placeholder="החתונה של עומר ונועה" class="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 outline-none" />
+            </div>
+
+            <div>
+              <label for="ws-eventDate" class="block text-xs font-semibold text-stone-700 mb-1.5">תאריך החתונה</label>
+              <input id="ws-eventDate" type="date" required class="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 outline-none" />
+            </div>
+
+            <div>
+              <label for="ws-eventTime" class="block text-xs font-semibold text-stone-700 mb-1.5">שעת קבלת פנים</label>
+              <input id="ws-eventTime" type="time" required class="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 outline-none" />
+            </div>
+
+            <div>
+              <label for="ws-venueName" class="block text-xs font-semibold text-stone-700 mb-1.5">שם האולם / גן האירועים</label>
+              <input id="ws-venueName" type="text" required placeholder="גן האירועים" class="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 outline-none" />
+            </div>
+
+            <div>
+              <label for="ws-venueAddress" class="block text-xs font-semibold text-stone-700 mb-1.5">כתובת האירוע</label>
+              <input id="ws-venueAddress" type="text" placeholder="רחוב הדקל 10, תל אביב" class="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 outline-none" />
+            </div>
+
+            <div>
+              <label for="ws-wazeUrl" class="block text-xs font-semibold text-stone-700 mb-1.5">קישור Waze</label>
+              <input id="ws-wazeUrl" type="url" dir="ltr" placeholder="https://waze.com/ul?q=..." class="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm text-left focus:bg-white focus:border-amber-500 outline-none" />
+            </div>
+
+            <div class="sm:col-span-2 lg:col-span-3">
+              <label for="ws-invitationSubtitle" class="block text-xs font-semibold text-stone-700 mb-1.5">טקסט פתיחה בדף ההזמנה</label>
+              <textarea id="ws-invitationSubtitle" rows="2" placeholder="מתרגשים להזמין אתכם לחגוג איתנו את היום המיוחד שלנו!" class="w-full px-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 outline-none"></textarea>
+            </div>
+          </div>
+        </form>
+
+        <!-- C. 4 WhatsApp Templates Editor + Live Phone Preview -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Editor (7 cols) -->
+          <div class="lg:col-span-7 bg-white rounded-2xl border border-stone-200/80 shadow-xs p-5 sm:p-6 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-lg font-bold text-stone-900">עורך תבניות WhatsApp</h3>
+              <button id="btn-save-templates" type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold transition">
+                <i data-lucide="check" class="w-4 h-4 text-amber-400"></i>
+                <span>שמור תבניות ב-Firebase</span>
+              </button>
+            </div>
+
+            <!-- 4 Template Selector Tabs -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button data-tpl="invite" type="button" class="tpl-selector px-3 py-2 rounded-xl text-xs font-semibold bg-amber-600 text-white transition">1. הזמנה ראשונית</button>
+              <button data-tpl="reminder7dPending" type="button" class="tpl-selector px-3 py-2 rounded-xl text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition">2. שבוע - טרם ענו</button>
+              <button data-tpl="reminder7dConfirmed" type="button" class="tpl-selector px-3 py-2 rounded-xl text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition">3. שבוע - מאשרים</button>
+              <button data-tpl="reminder24h" type="button" class="tpl-selector px-3 py-2 rounded-xl text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition">4. 24 שעות לפני</button>
+            </div>
+
+            <!-- Variable Insertion Chips -->
+            <div class="space-y-1.5">
+              <span class="text-xs font-medium text-stone-500">לחצו להכנסת משתנה במקום הסמן:</span>
+              <div class="flex flex-wrap gap-1.5">
+                <button type="button" data-var="{{שם_פנייה}}" class="var-chip px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold transition">+ שם פנייה</button>
+                <button type="button" data-var="{{קישור_אישור}}" class="var-chip px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-semibold transition">+ קישור אישור</button>
+                <button type="button" data-var="{{קישור_וויז}}" class="var-chip px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-medium transition">+ קישור וויז</button>
+                <button type="button" data-var="{{שולחן}}" class="var-chip px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-medium transition">+ שולחן</button>
+                <button type="button" data-var="{{מקום}}" class="var-chip px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-medium transition">+ מקום</button>
+                <button type="button" data-var="{{תאריך}}" class="var-chip px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-medium transition">+ תאריך</button>
+                <button type="button" data-var="{{שעה}}" class="var-chip px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs font-medium transition">+ שעה</button>
+              </div>
+            </div>
+
+            <div>
+              <label id="active-template-heading" for="template-textarea" class="block text-sm font-semibold text-stone-800 mb-1.5">הזמנה ראשונית</label>
+              <textarea id="template-textarea" rows="8" class="w-full p-4 rounded-2xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm leading-relaxed"></textarea>
+            </div>
+          </div>
+
+          <!-- Live WhatsApp Chat Bubble Preview (5 cols) -->
+          <div class="lg:col-span-5 bg-white rounded-2xl border border-stone-200/80 shadow-xs p-5 flex flex-col gap-4">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="text-base font-bold text-stone-900">תצוגה מקדימה ב-WhatsApp</h3>
+              <select id="wa-preview-guest-select" class="max-w-[190px] px-2.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 text-xs outline-none"></select>
+            </div>
+
+            <div class="rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex-1 flex flex-col">
+              <!-- WA Header -->
+              <div class="bg-[#075E54] text-white px-4 py-3 flex items-center gap-3">
+                <div id="wa-preview-avatar" class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">ד</div>
+                <div class="min-w-0">
+                  <p id="wa-preview-contact" class="text-sm font-semibold truncate">אורח לדוגמה</p>
+                  <p id="wa-preview-phone" dir="ltr" class="text-[11px] text-emerald-100 text-right">050-123-4567</p>
+                </div>
+              </div>
+              <!-- WA Chat Area -->
+              <div class="wa-chat-bg p-4 flex-1 flex flex-col justify-end min-h-[250px]">
+                <div class="bg-[#D9FDD3] text-stone-900 rounded-2xl rounded-tr-xs px-3.5 py-2.5 shadow-xs max-w-[94%] self-start text-sm leading-relaxed whitespace-pre-line break-words">
+                  <div id="wa-preview-body"></div>
+                  <div class="flex items-center justify-end gap-1 mt-1 text-[10px] text-stone-500">
+                    <span>19:00</span>
+                    <i data-lucide="check-check" class="w-3.5 h-3.5 text-sky-500"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button id="btn-wa-test-open" type="button" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition flex items-center justify-center gap-2">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              <span>פתח הודעה זו בוואטסאפ לבדיקה</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 7. ADD / EDIT GUEST MODAL                                             -->
+  <!-- ===================================================================== -->
+  <div id="guest-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-stone-900/55 backdrop-blur-xs p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl border border-stone-200 max-w-xl w-full p-6 my-8 animate-fade-up">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-5">
+        <h3 id="guest-modal-title" class="text-xl font-bold text-stone-900">הוספת מוזמן חדש</h3>
+        <button id="close-guest-modal" type="button" class="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="guest-form" class="space-y-4">
+        <input type="hidden" id="gf-id" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="gf-fullName" class="block text-sm font-medium text-stone-700 mb-1">שם מלא <span class="text-rose-500">*</span></label>
+            <input id="gf-fullName" type="text" required placeholder="משה ורחל כהן" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm" />
+          </div>
+          <div>
+            <label for="gf-greetingName" class="block text-sm font-medium text-stone-700 mb-1">שם פנייה להודעה</label>
+            <input id="gf-greetingName" type="text" placeholder="דוד משה ודודה רחל" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="gf-phone" class="block text-sm font-medium text-stone-700 mb-1">טלפון נייד <span class="text-rose-500">*</span></label>
+            <input id="gf-phone" type="tel" dir="ltr" required placeholder="050-1234567" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm text-left" />
+          </div>
+          <div>
+            <label for="gf-status" class="block text-sm font-medium text-stone-700 mb-1">סטטוס הגעה</label>
+            <select id="gf-status" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 focus:border-amber-500 outline-none text-sm bg-white">
+              <option value="pending">טרם ענה</option>
+              <option value="confirmed">מגיע</option>
+              <option value="maybe">מתלבט / אולי</option>
+              <option value="declined">לא מגיע</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label for="gf-side" class="block text-sm font-medium text-stone-700 mb-1">צד</label>
+            <select id="gf-side" class="w-full px-3 py-2.5 rounded-xl border border-stone-300 outline-none text-sm bg-white">
+              <option value="חתן">חתן</option>
+              <option value="כלה">כלה</option>
+              <option value="משותף">משותף</option>
+            </select>
+          </div>
+          <div>
+            <label for="gf-group" class="block text-sm font-medium text-stone-700 mb-1">קבוצה</label>
+            <input id="gf-group" type="text" list="group-suggestions" value="משפחה" placeholder="משפחה / חברים" class="w-full px-3 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
+            <datalist id="group-suggestions">
+              <option value="משפחה"></option>
+              <option value="חברים"></option>
+              <option value="עבודה"></option>
+              <option value="צבא"></option>
+            </datalist>
+          </div>
+          <div>
+            <label for="gf-invitedCount" class="block text-sm font-medium text-stone-700 mb-1">מוזמנים</label>
+            <input id="gf-invitedCount" type="number" min="1" max="30" value="2" class="w-full px-3 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
+          </div>
+          <div>
+            <label for="gf-confirmedCount" class="block text-sm font-medium text-stone-700 mb-1">אישרו</label>
+            <input id="gf-confirmedCount" type="number" min="0" max="30" value="0" class="w-full px-3 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label for="gf-tableNumber" class="block text-sm font-medium text-stone-700 mb-1">מספר שולחן</label>
+            <input id="gf-tableNumber" type="text" placeholder="למשל: 12" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
+          </div>
+          <div class="sm:col-span-2">
+            <label for="gf-notes" class="block text-sm font-medium text-stone-700 mb-1">הערות (תזונה / אלרגיות)</label>
+            <input id="gf-notes" type="text" placeholder="למשל: 1 טבעוני, רגישות לגלוטן" class="w-full px-3.5 py-2.5 rounded-xl border border-stone-300 outline-none text-sm" />
+          </div>
+        </div>
+
+        <div class="bg-stone-50 rounded-xl p-3.5 border border-stone-200/70">
+          <span class="block text-xs font-semibold text-stone-500 mb-2">דגלי שליחת WhatsApp</span>
+          <div class="flex flex-wrap gap-4">
+            <label class="inline-flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
+              <input id="gf-inviteSent" type="checkbox" class="w-4 h-4 rounded accent-amber-600" />
+              <span>נשלחה הזמנה</span>
+            </label>
+            <label class="inline-flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
+              <input id="gf-reminder7dSent" type="checkbox" class="w-4 h-4 rounded accent-amber-600" />
+              <span>תזכורת 7 ימים</span>
+            </label>
+            <label class="inline-flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
+              <input id="gf-reminder24hSent" type="checkbox" class="w-4 h-4 rounded accent-amber-600" />
+              <span>תזכורת 24 שעות</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+          <button id="cancel-guest-modal" type="button" class="px-4 py-2.5 rounded-xl text-sm font-medium text-stone-700 bg-stone-100 hover:bg-stone-200 transition">ביטול</button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 shadow-xs transition">שמור ב-Firebase</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 8. PUBLIC GUEST RSVP VIEW (USED FOR ?id=... AND ADMIN PREVIEW MODAL)  -->
+  <!-- ===================================================================== -->
+  <div id="rsvp-shell" class="hidden min-h-screen bg-gradient-to-b from-champagne-100/70 via-ivory to-stone-100 py-6 px-4 sm:py-10">
+
+    <!-- Preview Top Bar (ONLY shown when Admin previews a guest inside overlay) -->
+    <div id="rsvp-admin-preview-bar" class="hidden max-w-lg mx-auto mb-4 bg-stone-900 text-white rounded-2xl px-4 py-3 flex items-center justify-between gap-3 shadow-lg">
+      <div class="flex items-center gap-2 text-xs font-semibold">
+        <i data-lucide="eye" class="w-4 h-4 text-amber-400"></i>
+        <span>תצוגה מקדימה של דף האורח</span>
+      </div>
+      <button id="btn-close-rsvp-preview" type="button" class="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold transition flex items-center gap-1.5">
+        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+        <span>סגור תצוגה</span>
+      </button>
+    </div>
+
+    <!-- Main Mobile-First Luxury Invitation Card -->
+    <div class="max-w-lg mx-auto invitation-card rounded-3xl overflow-hidden animate-fade-up">
+
+      <!-- Editorial Dark Charcoal & Gold Header -->
+      <div class="relative bg-gradient-to-br from-stone-900 via-stone-800 to-amber-950 text-white px-6 py-10 text-center overflow-hidden">
+        <!-- Subtle geometric decorative rings -->
+        <div class="absolute inset-0 flex items-center justify-center opacity-15 pointer-events-none">
+          <svg class="w-72 h-72 text-amber-300" viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="0.9">
+            <circle cx="100" cy="100" r="88" />
+            <circle cx="100" cy="100" r="74" stroke-dasharray="4 4" />
+            <path d="M100 16 C122 56, 144 78, 184 100 C144 122, 122 144, 100 184 C78 144, 56 122, 16 100 C56 78, 78 56, 100 16 Z" />
+          </svg>
+        </div>
+
+        <div class="relative z-10 space-y-2.5">
+          <p class="text-xs uppercase tracking-[0.26em] text-amber-200 font-medium">הזמנה לחתונה</p>
+          <h1 id="rsvp-couple-names" class="font-editorial text-3xl sm:text-4xl font-bold tracking-tight text-white">החתונה שלנו</h1>
+          <div class="inline-flex items-center gap-2 mt-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-sm text-amber-100">
+            <i data-lucide="calendar" class="w-4 h-4 text-amber-300"></i>
+            <span id="rsvp-date-header">-</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error / Guest Not Found State -->
+      <div id="rsvp-error-state" class="hidden p-8 text-center space-y-3">
+        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 mx-auto flex items-center justify-center">
+          <i data-lucide="search-x" class="w-6 h-6"></i>
+        </div>
+        <h2 id="rsvp-error-title" class="text-lg font-bold text-stone-900">הקישור האישי לא נמצא</h2>
+        <p id="rsvp-error-desc" class="text-sm text-stone-600 leading-relaxed">ייתכן שהקישור חלקי או שפרטי המוזמן הוסרו. נשמח שתפנו אלינו ישירות ונעדכן את הגעתכם!</p>
+      </div>
+
+      <!-- Guest Content & Interactive Form -->
+      <div id="rsvp-main-body" class="p-6 sm:p-8 space-y-6">
+
+        <!-- Personal Greeting -->
+        <div class="text-center space-y-2">
+          <h2 class="text-2xl font-bold text-stone-900">היי <span id="rsvp-greeting-name" class="text-amber-700">אורח יקר</span>!</h2>
+          <p id="rsvp-subtitle" class="text-sm text-stone-600 leading-relaxed"></p>
+        </div>
+
+        <!-- Event Details Summary Box -->
+        <div class="bg-stone-50 rounded-2xl p-4 border border-stone-200/70 space-y-3 text-sm">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-xl bg-amber-100/80 text-amber-800 flex items-center justify-center shrink-0">
+              <i data-lucide="clock" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p class="font-semibold text-stone-900">מתי נפגשים?</p>
+              <p class="text-stone-600"><span id="rsvp-full-date">-</span> • שעה <strong id="rsvp-time">19:30</strong></p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-xl bg-amber-100/80 text-amber-800 flex items-center justify-center shrink-0">
+              <i data-lucide="map-pin" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <p id="rsvp-venue-name" class="font-semibold text-stone-900">גן האירועים</p>
+              <p id="rsvp-venue-address" class="text-stone-600"></p>
+            </div>
+          </div>
+
+          <!-- Navigation & Calendar Buttons -->
+          <div class="grid grid-cols-2 gap-2.5 pt-2">
+            <a id="rsvp-waze-btn" href="#" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 font-semibold text-xs sm:text-sm transition">
+              <i data-lucide="navigation" class="w-4 h-4 text-sky-600"></i>
+              <span>ניווט ב-Waze</span>
+            </a>
+            <a id="rsvp-gcal-btn" href="#" target="_blank" rel="noopener noreferrer" class="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white hover:bg-stone-100 text-stone-800 border border-stone-200 font-semibold text-xs sm:text-sm transition">
+              <i data-lucide="calendar-plus" class="w-4 h-4 text-amber-600"></i>
+              <span>הוסף ליומן Google</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- RSVP Form -->
+        <form id="rsvp-form" class="space-y-5">
+          <div class="space-y-2.5">
+            <label class="block text-sm font-bold text-stone-900 text-center">האם תגיעו לחגוג איתנו?</label>
+
+            <div class="grid grid-cols-1 gap-2.5">
+              <button type="button" data-choice="confirmed" class="rsvp-choice-btn w-full p-4 rounded-2xl border-2 border-stone-200 hover:border-emerald-300 text-stone-800 font-semibold text-base transition flex items-center justify-between">
+                <span class="flex items-center gap-2.5">
+                  <span class="text-xl">🎉</span>
+                  <span>מגיע/ה בשמחה</span>
+                </span>
+                <span class="choice-check hidden w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold">✓</span>
+              </button>
+
+              <button type="button" data-choice="maybe" class="rsvp-choice-btn w-full p-4 rounded-2xl border-2 border-stone-200 hover:border-amber-300 text-stone-800 font-semibold text-base transition flex items-center justify-between">
+                <span class="flex items-center gap-2.5">
+                  <span class="text-xl">🤔</span>
+                  <span>עדיין מתלבט/ת</span>
+                </span>
+                <span class="choice-check hidden w-6 h-6 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold">✓</span>
+              </button>
+
+              <button type="button" data-choice="declined" class="rsvp-choice-btn w-full p-4 rounded-2xl border-2 border-stone-200 hover:border-rose-300 text-stone-800 font-semibold text-base transition flex items-center justify-between">
+                <span class="flex items-center gap-2.5">
+                  <span class="text-xl">💛</span>
+                  <span>לצערי לא אוכל להגיע</span>
+                </span>
+                <span class="choice-check hidden w-6 h-6 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs font-bold">✓</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Number Stepper (Shown for Attending / Maybe) -->
+          <div id="rsvp-stepper-box" class="hidden bg-emerald-50/60 border border-emerald-200/80 rounded-2xl p-4 text-center space-y-2.5 animate-fade-up">
+            <label class="block text-sm font-semibold text-stone-800">כמה אורחים מגיעים?</label>
+            <div class="inline-flex items-center gap-5 bg-white px-4 py-2 rounded-2xl border border-stone-200 shadow-xs">
+              <button id="rsvp-minus-btn" type="button" class="w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 text-xl font-bold flex items-center justify-center transition">−</button>
+              <span id="rsvp-count-display" class="text-2xl font-extrabold text-stone-900 min-w-[2.5rem]">2</span>
+              <button id="rsvp-plus-btn" type="button" class="w-10 h-10 rounded-xl bg-stone-900 hover:bg-stone-800 text-white text-xl font-bold flex items-center justify-center transition">+</button>
+            </div>
+          </div>
+
+          <!-- Dietary / Notes -->
+          <div>
+            <label for="rsvp-notes-input" class="block text-sm font-medium text-stone-700 mb-1.5">הערות, רגישויות תזונה או ברכה לזוג (אופציונלי)</label>
+            <textarea id="rsvp-notes-input" rows="2" placeholder="למשל: מנה טבעונית, ללא גלוטן, כסא תינוק..." class="w-full px-4 py-3 rounded-2xl border border-stone-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-sm"></textarea>
+          </div>
+
+          <button id="rsvp-submit-btn" type="submit" class="w-full py-4 rounded-2xl bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white text-base font-bold shadow-lg transition">
+            שליחת אישור הגעה
+          </button>
+        </form>
+
+        <!-- Confirmation Screen -->
+        <div id="rsvp-confirmation-box" class="hidden text-center space-y-4 py-4 animate-fade-up">
+          <div id="rsvp-conf-emoji" class="w-16 h-16 rounded-full bg-emerald-100 text-3xl mx-auto flex items-center justify-center">🥂</div>
+          <div class="space-y-1">
+            <h3 id="rsvp-conf-title" class="text-2xl font-bold text-stone-900">תודה שעדכנתם!</h3>
+            <p id="rsvp-conf-desc" class="text-sm text-stone-600 leading-relaxed"></p>
+          </div>
+          <div id="rsvp-conf-table" class="hidden inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm font-semibold">
+            <span>מספר השולחן שלכם:</span>
+            <span id="rsvp-conf-table-num" class="text-base font-extrabold"></span>
+          </div>
+          <div class="pt-3">
+            <button id="btn-rsvp-change-mind" type="button" class="text-sm font-semibold text-amber-700 hover:text-amber-800 underline underline-offset-4">
+              משהו השתנה? לחצו כאן לעדכון האישור
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 9. FIREBASE v13.4.0 & APPLICATION LOGIC                               -->
+  <!-- ===================================================================== -->
+  <script type="module">
+    // Firebase JS SDK v13.4.0 ES Modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-analytics.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      doc,
+      getDoc,
+      setDoc,
+      updateDoc,
+      deleteDoc,
+      onSnapshot,
+      writeBatch,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js";
+
+    // =========================================================================
+    // A. EXACT USER FIREBASE CONFIGURATION
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBGj4XupygFvfpZrXxF7osD5B-mdVauKKQ",
+      authDomain: "wedding-f8c29.firebaseapp.com",
+      projectId: "wedding-f8c29",
+      storageBucket: "wedding-f8c29.firebasestorage.app",
+      messagingSenderId: "663814897839",
+      appId: "1:663814897839:web:3343ef69df597741a8145a",
+      measurementId: "G-9ZPPK7HFLL"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Safe Analytics initialization (ad blockers will never crash the app)
+    try {
+      getAnalytics(app);
+    } catch (analyticsErr) {
+      console.warn("Firebase Analytics skipped:", analyticsErr);
+    }
+
+    // =========================================================================
+    // B. DEFAULTS & CONSTANTS
+    // =========================================================================
+    const DEFAULT_TEMPLATES = {
+      invite: `היי {{שם_פנייה}}! 💍✨
+מתרגשים להזמין אתכם לחגוג איתנו בחתונה שלנו בתאריך {{תאריך}} ב{{מקום}}.
+
+נשמח לאישור הגעה מהיר בקישור האישי שלכם:
+{{קישור_אישור}}
+
+מחכים לראותכם! ❤️`,
+
+      reminder7dPending: `היי {{שם_פנייה}} 🌸
+עוד שבוע בדיוק אנחנו מתחתנים ב{{מקום}} ({{תאריך}})!
+ראינו שעדיין לא הספקתם לעדכן האם תגיעו — נשמח ממש שתאשרו בלחיצה קצרה כאן:
+{{קישור_אישור}}`,
+
+      reminder7dConfirmed: `היי {{שם_פנייה}}! 🥂
+מתרגשים בטירוף — עוד שבוע בדיוק חוגגים יחד ב{{מקום}} ({{תאריך}})!
+אם יש שינוי בכמות או רגישות תזונתית, אפשר לעדכן כאן בכל רגע:
+{{קישור_אישור}}`,
+
+      reminder24h: `היי {{שם_פנייה}}, מחר זה קורה! 🎉✨
+מחכים לכם מחר ({{תאריך}}) החל מהשעה {{שעה}} ב{{מקום}}.
+📍 לניווט ישיר ב-Waze:
+{{קישור_וויז}}
+🪑 מספר השולחן שלכם: {{שולחן}}
+
+נתראה על הרחבה! 💃🕺`
+    };
+
+    const DEFAULT_SETTINGS = {
+      coupleNames: "החתונה שלנו",
+      eventDate: "2027-09-15",
+      eventTime: "19:30",
+      venueName: "גן האירועים",
+      venueAddress: "רחוב הדקל 10, תל אביב",
+      wazeUrl: "https://waze.com/ul?q=%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91",
+      invitationSubtitle: "מתרגשים ושמחים להזמין אתכם לחגוג איתנו את היום המיוחד שלנו! נשמח לאישור הגעתכם בקלות בלחיצת כפתור.",
+      templates: { ...DEFAULT_TEMPLATES }
+    };
+
+    const STATUS_MAP = {
+      pending: { label: "טרם ענה", cls: "bg-stone-100 text-stone-700 border-stone-200" },
+      confirmed: { label: "מגיע", cls: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+      maybe: { label: "מתלבט", cls: "bg-amber-100 text-amber-800 border-amber-200" },
+      declined: { label: "לא מגיע", cls: "bg-rose-100 text-rose-800 border-rose-200" }
+    };
+
+    const TEMPLATE_LABELS = {
+      invite: "1. הזמנה ראשונית",
+      reminder7dPending: "2. תזכורת 7 ימים לפני — לטרם ענו / מתלבטים",
+      reminder7dConfirmed: "3. תזכורת 7 ימים לפני — למאשרי הגעה",
+      reminder24h: "4. תזכורת 24 שעות לפני — למאשרי הגעה בלבד"
+    };
+
+    // =========================================================================
+    // C. CENTRAL APPLICATION STATE
+    // =========================================================================
+    const state = {
+      mode: "admin", // "public-rsvp" | "admin"
+      user: null,
+      guests: [],
+      settings: cloneSettings(DEFAULT_SETTINGS),
+      activeTab: "guests",
+      activeTplKey: "invite",
+      importRows: [],
+      unsubGuests: null,
+      unsubSettings: null,
+      // RSVP State (shared between public URL mode & admin preview overlay)
+      rsvpGuestId: null,
+      rsvpGuestData: null,
+      rsvpIsAdminPreview: false,
+      rsvpChoice: null,
+      rsvpCount: 2
+    };
+
+    function cloneSettings(src) {
+      return {
+        ...DEFAULT_SETTINGS,
+        ...(src || {}),
+        templates: {
+          ...DEFAULT_TEMPLATES,
+          ...((src && src.templates) || {})
+        }
+      };
+    }
+
+    // =========================================================================
+    // D. UTILITY HELPERS
+    // =========================================================================
+    function refreshIcons() {
+      if (window.lucide && typeof window.lucide.createIcons === "function") {
+        window.lucide.createIcons();
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function generateGuestId() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") {
+        return "g_" + window.crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+      }
+      const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+      let id = "g_";
+      for (let i = 0; i < 12; i++) id += chars[Math.floor(Math.random() * chars.length)];
+      return id;
+    }
+
+    function getTimestampMillis(ts) {
+      if (!ts) return Date.now();
+      if (typeof ts.toMillis === "function") return ts.toMillis();
+      if (typeof ts.seconds === "number") return ts.seconds * 1000;
+      if (typeof ts === "number") return ts;
+      return 0;
+    }
+
+    /** Normalizes any Israeli mobile format into 9725XXXXXXXX */
+    function normalizeIsraeliPhone(raw) {
+      if (raw === null || raw === undefined) {
+        return { valid: false, normalized: "", reason: "חסר טלפון" };
+      }
+      let digits = String(raw).replace(/[\u200e\u200f\u202a-\u202e\s\-().+]/g, "").replace(/\D/g, "");
+      if (!digits) return { valid: false, normalized: "", reason: "טלפון ריק" };
+
+      if (digits.startsWith("00972")) {
+        digits = "972" + digits.slice(5);
+      } else if (digits.startsWith("97205")) {
+        digits = "972" + digits.slice(4);
+      } else if (digits.startsWith("05") && digits.length === 10) {
+        digits = "972" + digits.slice(1);
+      } else if (digits.startsWith("5") && digits.length === 9) {
+        digits = "972" + digits;
+      }
+
+      const valid = /^9725[0-9]{8}$/.test(digits);
+      return {
+        valid,
+        normalized: digits,
+        reason: valid ? "" : "מספר נייד ישראלי לא תקין"
+      };
+    }
+
+    function formatPhoneDisplay(phone) {
+      const clean = String(phone || "").replace(/\D/g, "");
+      if (clean.startsWith("9725") && clean.length === 12) {
+        const local = "0" + clean.slice(3);
+        return `${local.slice(0, 3)}-${local.slice(3, 6)}-${local.slice(6)}`;
+      }
+      return phone || "";
+    }
+
+    function formatHebrewDate(isoDate) {
+      if (!isoDate) return "";
+      try {
+        const [y, m, d] = isoDate.split("-").map(Number);
+        const dt = new Date(y, m - 1, d);
+        return new Intl.DateTimeFormat("he-IL", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric"
+        }).format(dt);
+      } catch {
+        return isoDate;
+      }
+    }
+
+    function buildRsvpUrl(guestId) {
+      if (window.location.protocol.startsWith("http")) {
+        return `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(guestId)}`;
+      }
+      return `https://wedding-f8c29.web.app/?id=${encodeURIComponent(guestId)}`;
+    }
+
+    function buildGoogleCalendarUrl(s) {
+      const dateStr = (s.eventDate || "2027-09-15").replace(/-/g, "");
+      const timeStr = (s.eventTime || "19:30").replace(":", "") + "00";
+      const endObj = new Date(`${s.eventDate || "2027-09-15"}T${s.eventTime || "19:30"}`);
+      endObj.setHours(endObj.getHours() + 5);
+      const pad = (n) => String(n).padStart(2, "0");
+      const endDate = `${endObj.getFullYear()}${pad(endObj.getMonth() + 1)}${pad(endObj.getDate())}`;
+      const endTime = `${pad(endObj.getHours())}${pad(endObj.getMinutes())}00`;
+
+      const params = new URLSearchParams({
+        action: "TEMPLATE",
+        text: s.coupleNames || "חתונה",
+        dates: `${dateStr}T${timeStr}/${endDate}T${endTime}`,
+        details: s.invitationSubtitle || "",
+        location: [s.venueName, s.venueAddress].filter(Boolean).join(", ")
+      });
+      return `https://calendar.google.com/calendar/render?${params.toString()}`;
+    }
+
+    function renderTemplateText(tplText, guest) {
+      const s = state.settings;
+      const greeting = (guest?.greetingName || guest?.fullName || "אורח יקר").trim();
+      const link = buildRsvpUrl(guest?.id || "sample123");
+      const place = [s.venueName, s.venueAddress].filter(Boolean).join(", ");
+      const table = guest?.tableNumber ? guest.tableNumber : "יעודכן בקרוב";
+
+      return String(tplText || "")
+        .replaceAll("{{שם_פנייה}}", greeting)
+        .replaceAll("{{קישור_אישור}}", link)
+        .replaceAll("{{קישור_וויז}}", s.wazeUrl || "")
+        .replaceAll("{{שולחן}}", table)
+        .replaceAll("{{מקום}}", place)
+        .replaceAll("{{תאריך}}", formatHebrewDate(s.eventDate))
+        .replaceAll("{{שעה}}", s.eventTime || "19:30");
+    }
+
+    function copyText(text, successMsg = "הועתק ללוח!") {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      ta.style.pointerEvents = "none";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand("copy");
+        showToast(successMsg, "success");
+      } catch (err) {
+        console.error("Clipboard copy failed:", err);
+        showToast("לא ניתן להעתיק אוטומטית בדפדפן זה", "error");
+      } finally {
+        document.body.removeChild(ta);
+      }
+    }
+
+    function showToast(message, type = "info") {
+      const container = document.getElementById("toast-container");
+      const toast = document.createElement("div");
+      const theme = {
+        success: "bg-stone-900 text-white border-emerald-500",
+        error: "bg-rose-700 text-white border-rose-300",
+        info: "bg-stone-800 text-white border-amber-400"
+      };
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-xl border-r-4 text-sm font-medium animate-fade-up ${theme[type] || theme.info}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transition = "opacity 0.25s ease";
+        setTimeout(() => toast.remove(), 260);
+      }, 3300);
+    }
+
+    let confirmResolver = null;
+    function showConfirm(title, message, okLabel = "אישור", isDanger = true) {
+      document.getElementById("confirm-title").textContent = title;
+      document.getElementById("confirm-message").textContent = message;
+      const okBtn = document.getElementById("confirm-ok-btn");
+      okBtn.textContent = okLabel;
+      okBtn.className = isDanger
+        ? "px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700 transition"
+        : "px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-stone-900 hover:bg-stone-800 transition";
+      document.getElementById("confirm-modal").classList.remove("hidden");
+      refreshIcons();
+      return new Promise((resolve) => {
+        confirmResolver = resolve;
+      });
+    }
+
+    document.getElementById("confirm-cancel-btn").addEventListener("click", () => {
+      document.getElementById("confirm-modal").classList.add("hidden");
+      if (confirmResolver) confirmResolver(false);
+    });
+    document.getElementById("confirm-ok-btn").addEventListener("click", () => {
+      document.getElementById("confirm-modal").classList.add("hidden");
+      if (confirmResolver) confirmResolver(true);
+    });
+
+    function hideLoader() {
+      const loader = document.getElementById("app-loader");
+      loader.classList.add("opacity-0");
+      setTimeout(() => loader.classList.add("hidden"), 280);
+    }
+
+    function showPermissionDiagnostic(err) {
+      if (err && (err.code === "permission-denied" || String(err.message || "").includes("permission"))) {
+        const banner = document.getElementById("permission-error-banner");
+        document.getElementById("diag-user-email").textContent = state.user?.email || "לא מזוהה";
+        banner.classList.remove("hidden");
+        refreshIcons();
+      }
+    }
+
+    // =========================================================================
+    // E. ROUTING & BOOTSTRAP
+    // =========================================================================
+    async function bootApp() {
+      refreshIcons();
+      const params = new URLSearchParams(window.location.search);
+      const guestId = params.get("id");
+      const previewAdmin = params.get("preview") === "admin";
+
+      // PUBLIC GUEST RSVP ROUTE (NO LOGIN REQUIRED)
+      if (guestId && !previewAdmin) {
+        state.mode = "public-rsvp";
+        await loadPublicGuestRsvp(guestId);
+        hideLoader();
+        return;
+      }
+
+      // ADMIN APP ROUTE (EMAIL/PASSWORD AUTH)
+      state.mode = "admin";
+      onAuthStateChanged(auth, (user) => {
+        state.user = user;
+        if (user && isAdminUser(user)) {
+          enterAdminDashboard(user);
+        } else if (user) {
+          signOut(auth).catch((err) => console.error("Unauthorized sign-out error:", err));
+          teardownAdminListeners();
+          document.getElementById("admin-view").classList.add("hidden");
+          document.getElementById("rsvp-shell").classList.add("hidden");
+          document.getElementById("auth-view").classList.remove("hidden");
+          const errBox = document.getElementById("auth-error-box");
+          const errTxt = document.getElementById("auth-error-text");
+          errTxt.textContent = "לחשבון זה אין הרשאת ניהול.";
+          errBox.classList.remove("hidden");
+        } else {
+          teardownAdminListeners();
+          document.getElementById("admin-view").classList.add("hidden");
+          document.getElementById("rsvp-shell").classList.add("hidden");
+          document.getElementById("auth-view").classList.remove("hidden");
+        }
+        hideLoader();
+        refreshIcons();
+      });
+    }
+
+    // =========================================================================
+    // F. EMAIL/PASSWORD AUTHENTICATION & ADMIN REAL-TIME LISTENERS
+    // =========================================================================
+    const ADMIN_EMAILS = new Set([
+      "reemkayzer@gmail.com",
+      "mayaco21@gmail.com"
+    ]);
+
+    function isAdminUser(user) {
+      return Boolean(user?.email && ADMIN_EMAILS.has(user.email.toLowerCase()));
+    }
+
+    document.getElementById("email-signin-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const errBox = document.getElementById("auth-error-box");
+      const errTxt = document.getElementById("auth-error-text");
+      const submitBtn = document.getElementById("btn-email-signin");
+      const email = document.getElementById("signin-email").value.trim().toLowerCase();
+      const password = document.getElementById("signin-password").value;
+      errBox.classList.add("hidden");
+      submitBtn.disabled = true;
+      submitBtn.textContent = "מתחבר...";
+
+      try {
+        await signInWithEmailAndPassword(auth, email, password);
+      } catch (err) {
+        console.error("Email Sign-In error:", err);
+        let msg = "המייל או הסיסמה אינם נכונים.";
+        if (err.code === "auth/operation-not-allowed") {
+          msg = "התחברות אימייל/סיסמה עדיין לא מופעלת בפרויקט Firebase.";
+        } else if (err.code === "auth/too-many-requests") {
+          msg = "בוצעו ניסיונות התחברות רבים. נסו שוב מאוחר יותר.";
+        } else {
+          msg = `${msg} (${err.code || err.message})`;
+        }
+        errTxt.textContent = msg;
+        errBox.classList.remove("hidden");
+        refreshIcons();
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "התחברות";
+      }
+    });
+
+    document.getElementById("btn-logout").addEventListener("click", async () => {
+      try {
+        teardownAdminListeners();
+        await signOut(auth);
+        showToast("התנתקת בהצלחה", "info");
+      } catch (err) {
+        console.error("Sign out error:", err);
+      }
+    });
+
+    function teardownAdminListeners() {
+      if (state.unsubGuests) {
+        state.unsubGuests();
+        state.unsubGuests = null;
+      }
+      if (state.unsubSettings) {
+        state.unsubSettings();
+        state.unsubSettings = null;
+      }
+    }
+
+    function enterAdminDashboard(user) {
+      document.getElementById("auth-view").classList.add("hidden");
+      document.getElementById("rsvp-shell").classList.add("hidden");
+      document.getElementById("admin-view").classList.remove("hidden");
+      document.getElementById("permission-error-banner").classList.add("hidden");
+
+      // Display Google User Profile
+      document.getElementById("user-display-name").textContent = user.displayName || "מנהל החתונה";
+      document.getElementById("user-email").textContent = user.email || "";
+      const avatarImg = document.getElementById("user-avatar-img");
+      const avatarFallback = document.getElementById("user-avatar-fallback");
+      avatarFallback.textContent = (user.displayName || user.email || "מ").charAt(0).toUpperCase();
+
+      if (user.photoURL) {
+        avatarImg.src = user.photoURL;
+        avatarImg.classList.remove("hidden");
+        avatarFallback.classList.add("hidden");
+        avatarImg.onerror = () => {
+          avatarImg.classList.add("hidden");
+          avatarFallback.classList.remove("hidden");
+        };
+      } else {
+        avatarImg.classList.add("hidden");
+        avatarFallback.classList.remove("hidden");
+      }
+
+      attachFirestoreListeners();
+    }
+
+    function attachFirestoreListeners() {
+      teardownAdminListeners();
+
+      // 1. Live Listener on `guests` Collection
+      state.unsubGuests = onSnapshot(
+        collection(db, "guests"),
+        (snapshot) => {
+          document.getElementById("permission-error-banner").classList.add("hidden");
+          const list = [];
+          snapshot.forEach((docSnap) => {
+            list.push({ id: docSnap.id, ...docSnap.data() });
+          });
+          // Sort by most recently updated
+          list.sort((a, b) => getTimestampMillis(b.updatedAt) - getTimestampMillis(a.updatedAt));
+          state.guests = list;
+          renderAllAdminViews();
+        },
+        (err) => {
+          console.error("Firestore guests listener error:", err);
+          showPermissionDiagnostic(err);
+          showToast("שגיאה בקריאת רשימת המוזמנים מ-Firestore", "error");
+        }
+      );
+
+      // 2. Live Listener on `settings/wedding` Document
+      state.unsubSettings = onSnapshot(
+        doc(db, "settings", "wedding"),
+        (docSnap) => {
+          if (docSnap.exists()) {
+            state.settings = cloneSettings(docSnap.data());
+          } else {
+            state.settings = cloneSettings(DEFAULT_SETTINGS);
+          }
+          renderSettingsForm();
+          renderTemplateEditor();
+          renderWhatsAppPreview();
+        },
+        (err) => {
+          console.error("Firestore settings listener error:", err);
+          showPermissionDiagnostic(err);
+        }
+      );
+    }
+
+    // =========================================================================
+    // G. ADMIN RENDERING FUNCTIONS
+    // =========================================================================
+    function renderAllAdminViews() {
+      renderKPIs();
+      renderGuestsList();
+      renderReadinessCounters();
+      renderPreviewGuestSelect();
+      renderWhatsAppPreview();
+      refreshIcons();
+    }
+
+    function renderKPIs() {
+      let totalPeople = 0;
+      let confirmedPeople = 0, confirmedRecs = 0;
+      let pendingPeople = 0, pendingRecs = 0, maybeRecs = 0;
+      let declinedPeople = 0, declinedRecs = 0;
+
+      state.guests.forEach((g) => {
+        const inv = Math.max(1, Number(g.invitedCount) || 1);
+        const conf = Math.max(0, Number(g.confirmedCount) || 0);
+        totalPeople += inv;
+
+        if (g.status === "confirmed") {
+          confirmedRecs++;
+          confirmedPeople += conf > 0 ? conf : inv;
+        } else if (g.status === "declined") {
+          declinedRecs++;
+          declinedPeople += inv;
+        } else {
+          pendingPeople += inv;
+          if (g.status === "maybe") maybeRecs++;
+          else pendingRecs++;
+        }
+      });
+
+      const pct = totalPeople > 0 ? Math.round((confirmedPeople / totalPeople) * 100) : 0;
+
+      document.getElementById("nav-badge-count").textContent = state.guests.length;
+      document.getElementById("kpi-total-people").textContent = totalPeople;
+      document.getElementById("kpi-total-records").textContent = `${state.guests.length} רשומות ברשימה`;
+      document.getElementById("kpi-confirmed-people").textContent = confirmedPeople;
+      document.getElementById("kpi-confirmed-pct").textContent = `${pct}%`;
+      document.getElementById("kpi-confirmed-records").textContent = `${confirmedRecs} רשומות מאושרות`;
+      document.getElementById("kpi-pending-people").textContent = pendingPeople;
+      document.getElementById("kpi-pending-records").textContent = `${pendingRecs} טרם ענו • ${maybeRecs} מתלבטים`;
+      document.getElementById("kpi-declined-people").textContent = declinedPeople;
+      document.getElementById("kpi-declined-records").textContent = `${declinedRecs} רשומות סירבו`;
+    }
+
+    function getFilteredGuests() {
+      const q = document.getElementById("filter-search").value.trim().toLowerCase();
+      const status = document.getElementById("filter-status").value;
+      const side = document.getElementById("filter-side").value;
+
+      return state.guests.filter((g) => {
+        if (status !== "all" && g.status !== status) return false;
+        if (side !== "all" && g.side !== side) return false;
+        if (q) {
+          const hay = [
+            g.fullName,
+            g.greetingName,
+            g.phone,
+            formatPhoneDisplay(g.phone),
+            g.group,
+            g.tableNumber,
+            g.notes
+          ].join(" ").toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+    }
+
+    function renderGuestsList() {
+      const emptyEl = document.getElementById("guests-empty-state");
+      const noMatchesEl = document.getElementById("guests-no-matches");
+      const tableWrap = document.getElementById("guests-table-container");
+      const tbody = document.getElementById("guests-table-body");
+      const cardsWrap = document.getElementById("guests-cards-container");
+      const countLabel = document.getElementById("filtered-count-label");
+
+      if (state.guests.length === 0) {
+        emptyEl.classList.remove("hidden");
+        noMatchesEl.classList.add("hidden");
+        tableWrap.classList.add("lg:hidden");
+        tableWrap.classList.remove("lg:block");
+        tbody.innerHTML = "";
+        cardsWrap.innerHTML = "";
+        countLabel.textContent = "";
+        return;
+      }
+
+      emptyEl.classList.add("hidden");
+      const filtered = getFilteredGuests();
+      countLabel.textContent = `מציג ${filtered.length} מתוך ${state.guests.length} מוזמנים`;
+
+      if (filtered.length === 0) {
+        noMatchesEl.classList.remove("hidden");
+        tableWrap.classList.add("lg:hidden");
+        tableWrap.classList.remove("lg:block");
+        tbody.innerHTML = "";
+        cardsWrap.innerHTML = "";
+        return;
+      }
+
+      noMatchesEl.classList.add("hidden");
+      tableWrap.classList.remove("lg:hidden");
+      tableWrap.classList.add("lg:block");
+
+      const flagBtn = (id, key, label, active) => `
+        <button type="button" data-action="toggle-flag" data-id="${id}" data-flag="${key}"
+          class="px-2 py-1 rounded-lg text-[11px] font-semibold border transition ${
+            active
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+              : "bg-stone-50 text-stone-400 border-stone-200 hover:bg-stone-100 hover:text-stone-700"
+          }">
+          ${active ? "✓ " : ""}${label}
+        </button>`;
+
+      // Desktop Table Rows
+      tbody.innerHTML = filtered.map((g) => {
+        const st = STATUS_MAP[g.status] || STATUS_MAP.pending;
+        return `
+          <tr class="hover:bg-stone-50/70 transition">
+            <td class="py-3.5 px-4">
+              <div class="font-semibold text-stone-900">${escapeHtml(g.fullName)}</div>
+              ${g.greetingName && g.greetingName !== g.fullName
+                ? `<div class="text-xs text-stone-500 mt-0.5">פנייה: ${escapeHtml(g.greetingName)}</div>`
+                : ""}
+            </td>
+            <td class="py-3.5 px-3 whitespace-nowrap">
+              <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-1 rounded-lg">${escapeHtml(formatPhoneDisplay(g.phone))}</span>
+            </td>
+            <td class="py-3.5 px-3 whitespace-nowrap">
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/70 font-medium">${escapeHtml(g.side || "משותף")}</span>
+                ${g.group ? `<span class="text-xs px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">${escapeHtml(g.group)}</span>` : ""}
+              </div>
+            </td>
+            <td class="py-3.5 px-3 text-center whitespace-nowrap">
+              <span class="font-bold ${g.status === "confirmed" ? "text-emerald-700" : "text-stone-900"}">${g.confirmedCount || 0}</span>
+              <span class="text-stone-400 mx-0.5">/</span>
+              <span class="text-stone-500">${g.invitedCount || 1}</span>
+            </td>
+            <td class="py-3.5 px-3 whitespace-nowrap">
+              <select data-action="quick-status" data-id="${g.id}" class="text-xs font-semibold px-2.5 py-1.5 rounded-xl border outline-none cursor-pointer ${st.cls}">
+                <option value="pending" ${g.status === "pending" ? "selected" : ""}>טרם ענה</option>
+                <option value="confirmed" ${g.status === "confirmed" ? "selected" : ""}>מגיע</option>
+                <option value="maybe" ${g.status === "maybe" ? "selected" : ""}>מתלבט</option>
+                <option value="declined" ${g.status === "declined" ? "selected" : ""}>לא מגיע</option>
+              </select>
+            </td>
+            <td class="py-3.5 px-3 max-w-[180px]">
+              <div class="flex flex-wrap items-center gap-1.5">
+                ${g.tableNumber ? `<span class="text-xs font-semibold px-2 py-0.5 rounded-md bg-stone-900 text-white">שולחן ${escapeHtml(g.tableNumber)}</span>` : ""}
+                ${g.notes ? `<span class="text-xs text-stone-600 truncate max-w-[150px]" title="${escapeHtml(g.notes)}">${escapeHtml(g.notes)}</span>` : (!g.tableNumber ? `<span class="text-xs text-stone-300">—</span>` : "")}
+              </div>
+            </td>
+            <td class="py-3.5 px-3">
+              <div class="flex items-center justify-center gap-1">
+                ${flagBtn(g.id, "inviteSent", "הזמנה", g.inviteSent)}
+                ${flagBtn(g.id, "reminder7dSent", "7 ימים", g.reminder7dSent)}
+                ${flagBtn(g.id, "reminder24hSent", "24 שעות", g.reminder24hSent)}
+              </div>
+            </td>
+            <td class="py-3.5 px-4 whitespace-nowrap">
+              <div class="flex items-center justify-end gap-1">
+                <button type="button" data-action="copy-link" data-id="${g.id}" title="העתק קישור RSVP" class="p-2 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition">
+                  <i data-lucide="link-2" class="w-4 h-4"></i>
+                </button>
+                <button type="button" data-action="preview-rsvp" data-id="${g.id}" title="תצוגת אורח" class="p-2 rounded-lg text-amber-700 hover:bg-amber-50 transition">
+                  <i data-lucide="eye" class="w-4 h-4"></i>
+                </button>
+                <button type="button" data-action="edit" data-id="${g.id}" title="ערוך מוזמן" class="p-2 rounded-lg text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition">
+                  <i data-lucide="pencil" class="w-4 h-4"></i>
+                </button>
+                <button type="button" data-action="delete" data-id="${g.id}" title="מחק מוזמן" class="p-2 rounded-lg text-rose-500 hover:bg-rose-50 transition">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+      // Mobile / Tablet Cards
+      cardsWrap.innerHTML = filtered.map((g) => {
+        const st = STATUS_MAP[g.status] || STATUS_MAP.pending;
+        return `
+          <div class="bg-white rounded-2xl border border-stone-200/80 shadow-xs p-4 space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h3 class="font-bold text-stone-900 text-base truncate">${escapeHtml(g.fullName)}</h3>
+                ${g.greetingName && g.greetingName !== g.fullName ? `<p class="text-xs text-stone-500">פנייה: ${escapeHtml(g.greetingName)}</p>` : ""}
+                <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                  <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">${escapeHtml(formatPhoneDisplay(g.phone))}</span>
+                  <span class="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/70">${escapeHtml(g.side || "משותף")}</span>
+                  ${g.group ? `<span class="text-xs px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">${escapeHtml(g.group)}</span>` : ""}
+                  ${g.tableNumber ? `<span class="text-xs px-2 py-0.5 rounded-md bg-stone-900 text-white font-semibold">שולחן ${escapeHtml(g.tableNumber)}</span>` : ""}
+                </div>
+              </div>
+              <select data-action="quick-status" data-id="${g.id}" class="text-xs font-semibold px-2.5 py-1.5 rounded-xl border outline-none shrink-0 ${st.cls}">
+                <option value="pending" ${g.status === "pending" ? "selected" : ""}>טרם ענה</option>
+                <option value="confirmed" ${g.status === "confirmed" ? "selected" : ""}>מגיע</option>
+                <option value="maybe" ${g.status === "maybe" ? "selected" : ""}>מתלבט</option>
+                <option value="declined" ${g.status === "declined" ? "selected" : ""}>לא מגיע</option>
+              </select>
+            </div>
+
+            <div class="flex items-center justify-between text-xs bg-stone-50 rounded-xl px-3 py-2 border border-stone-100">
+              <span class="text-stone-600">מוזמנים: <strong>${g.invitedCount || 1}</strong></span>
+              <span class="${g.status === "confirmed" ? "text-emerald-700 font-bold" : "text-stone-600"}">אישרו בפועל: <strong>${g.confirmedCount || 0}</strong></span>
+            </div>
+
+            ${g.notes ? `<p class="text-xs text-stone-600 bg-amber-50/50 border border-amber-100 rounded-xl px-3 py-2">📝 ${escapeHtml(g.notes)}</p>` : ""}
+
+            <div class="grid grid-cols-3 gap-1.5">
+              ${flagBtn(g.id, "inviteSent", "הזמנה", g.inviteSent)}
+              ${flagBtn(g.id, "reminder7dSent", "7 ימים", g.reminder7dSent)}
+              ${flagBtn(g.id, "reminder24hSent", "24 שעות", g.reminder24hSent)}
+            </div>
+
+            <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-stone-100">
+              <button type="button" data-action="copy-link" data-id="${g.id}" class="py-2 px-2 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold flex items-center justify-center gap-1">
+                <i data-lucide="link-2" class="w-3.5 h-3.5"></i><span>קישור</span>
+              </button>
+              <button type="button" data-action="preview-rsvp" data-id="${g.id}" class="py-2 px-2 rounded-xl bg-amber-50 text-amber-900 border border-amber-200 text-xs font-semibold flex items-center justify-center gap-1">
+                <i data-lucide="eye" class="w-3.5 h-3.5"></i><span>אורח</span>
+              </button>
+              <button type="button" data-action="edit" data-id="${g.id}" class="py-2 px-2 rounded-xl bg-stone-100 text-stone-700 text-xs font-semibold flex items-center justify-center gap-1">
+                <i data-lucide="pencil" class="w-3.5 h-3.5"></i><span>עריכה</span>
+              </button>
+              <button type="button" data-action="delete" data-id="${g.id}" class="py-2 px-2 rounded-xl bg-rose-50 text-rose-600 text-xs font-semibold flex items-center justify-center gap-1">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>מחיקה</span>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderReadinessCounters() {
+      let inviteTodo = 0, inviteDone = 0;
+      let rem7Pending = 0, rem7Confirmed = 0, rem24Confirmed = 0;
+
+      state.guests.forEach((g) => {
+        if (g.inviteSent) inviteDone++;
+        else inviteTodo++;
+
+        if (g.status === "confirmed") {
+          if (!g.reminder7dSent) rem7Confirmed++;
+          if (!g.reminder24hSent) rem24Confirmed++;
+        } else if (g.status === "pending" || g.status === "maybe") {
+          if (!g.reminder7dSent) rem7Pending++;
+        }
+      });
+
+      document.getElementById("ready-invite-count").textContent = inviteTodo;
+      document.getElementById("ready-invite-done").textContent = `נשלחה כבר ל-${inviteDone} מוזמנים`;
+      document.getElementById("ready-7d-pending-count").textContent = rem7Pending;
+      document.getElementById("ready-7d-confirmed-count").textContent = rem7Confirmed;
+      document.getElementById("ready-24h-count").textContent = rem24Confirmed;
+    }
+
+    function renderSettingsForm() {
+      const s = state.settings;
+      document.getElementById("header-couple-names").textContent = s.coupleNames || DEFAULT_SETTINGS.coupleNames;
+      document.getElementById("header-event-date").textContent = formatHebrewDate(s.eventDate);
+
+      document.getElementById("ws-coupleNames").value = s.coupleNames || "";
+      document.getElementById("ws-eventDate").value = s.eventDate || "";
+      document.getElementById("ws-eventTime").value = s.eventTime || "";
+      document.getElementById("ws-venueName").value = s.venueName || "";
+      document.getElementById("ws-venueAddress").value = s.venueAddress || "";
+      document.getElementById("ws-wazeUrl").value = s.wazeUrl || "";
+      document.getElementById("ws-invitationSubtitle").value = s.invitationSubtitle || "";
+    }
+
+    function renderTemplateEditor() {
+      const key = state.activeTplKey;
+      document.getElementById("active-template-heading").textContent = TEMPLATE_LABELS[key] || "";
+      document.getElementById("template-textarea").value = state.settings.templates[key] || "";
+
+      document.querySelectorAll(".tpl-selector").forEach((btn) => {
+        const active = btn.dataset.tpl === key;
+        btn.className = active
+          ? "tpl-selector px-3 py-2 rounded-xl text-xs font-semibold bg-amber-600 text-white transition shadow-xs"
+          : "tpl-selector px-3 py-2 rounded-xl text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition";
+      });
+    }
+
+    function renderPreviewGuestSelect() {
+      const sel = document.getElementById("wa-preview-guest-select");
+      const prev = sel.value;
+      if (!state.guests.length) {
+        sel.innerHTML = `<option value="__sample__">אורח לדוגמה (דוד משה)</option>`;
+        return;
+      }
+      sel.innerHTML = state.guests.map((g) => `<option value="${g.id}">${escapeHtml(g.fullName)}</option>`).join("");
+      if (prev && state.guests.some((g) => g.id === prev)) sel.value = prev;
+    }
+
+    function getSelectedPreviewGuest() {
+      const sel = document.getElementById("wa-preview-guest-select");
+      const found = state.guests.find((g) => g.id === sel.value);
+      if (found) return found;
+      return {
+        id: "g_sample123456",
+        fullName: "משה ורחל כהן",
+        greetingName: "דוד משה ודודה רחל",
+        phone: "972501234567",
+        tableNumber: "12"
+      };
+    }
+
+    function renderWhatsAppPreview() {
+      const guest = getSelectedPreviewGuest();
+      const rawText = document.getElementById("template-textarea").value || state.settings.templates[state.activeTplKey];
+      const rendered = renderTemplateText(rawText, guest);
+
+      document.getElementById("wa-preview-avatar").textContent = (guest.fullName || "א").trim().charAt(0);
+      document.getElementById("wa-preview-contact").textContent = guest.fullName;
+      document.getElementById("wa-preview-phone").textContent = formatPhoneDisplay(guest.phone);
+      document.getElementById("wa-preview-body").innerHTML = escapeHtml(rendered).replace(
+        /(https?:\/\/[^\s]+)/g,
+        '<span class="text-sky-700 underline break-all" dir="ltr">$1</span>'
+      );
+      refreshIcons();
+    }
+
+    // =========================================================================
+    // H. FIRESTORE WRITE OPERATIONS
+    // =========================================================================
+    async function saveGuest(data, existingId = null) {
+      const id = existingId || generateGuestId();
+      const payload = {
+        fullName: data.fullName.trim(),
+        greetingName: (data.greetingName || data.fullName).trim(),
+        phone: data.phone,
+        side: data.side || "משותף",
+        group: (data.group || "חברים").trim(),
+        invitedCount: Math.max(1, Number(data.invitedCount) || 1),
+        confirmedCount: Math.max(0, Number(data.confirmedCount) || 0),
+        status: data.status || "pending",
+        tableNumber: (data.tableNumber || "").trim(),
+        notes: (data.notes || "").trim(),
+        inviteSent: Boolean(data.inviteSent),
+        reminder7dSent: Boolean(data.reminder7dSent),
+        reminder24hSent: Boolean(data.reminder24hSent),
+        updatedAt: serverTimestamp()
+      };
+
+      if (existingId) {
+        await updateDoc(doc(db, "guests", id), payload);
+      } else {
+        payload.rsvpUpdatedAt = null;
+        await setDoc(doc(db, "guests", id), payload);
+      }
+    }
+
+    async function loadSampleGuestsToFirestore() {
+      const sideHebrew = { "ראם": "חתן", "מאיה": "כלה" };
+      const seedLines = `
+ראם|משפחה מצומצמת|6|איציק ואורטל קייזר
+ראם|משפחה מצומצמת|2|רחל וצביקה
+ראם|משפחה מצומצמת|6|שרית אבישר
+ראם|משפחה מצומצמת|3|משפחה דרגה ראשונה - ראם
+מאיה|משפחה מצומצמת|6|משפחה דרגה ראשונה - מאיה
+ראם|משפחה מורחבת|1|שאלתיאל יאיר
+ראם|משפחה מורחבת|1|שאלתיאל אביחי
+ראם|משפחה מורחבת|1|שאלתיאל לאה
+ראם|משפחה מצומצמת|4|ליאור קייזר
+ראם|משפחה מצומצמת|4|ישראל קייזר
+ראם|משפחה מצומצמת|3|בני קייזר
+מאיה|משפחה מצומצמת|2|זהבה ויהודה כהן
+מאיה|משפחה מצומצמת|5|אילן ולורן כהן
+מאיה|משפחה מצומצמת|6|הראל ונועה כהן
+מאיה|משפחה מצומצמת|2|חגית ורוני אריאל
+מאיה|משפחה מצומצמת|3|ברק וטל אריאל
+מאיה|משפחה מצומצמת|4|אליאור וטל אריאל
+מאיה|משפחה מצומצמת|5|רחלי ושרון ויניצר
+מאיה|משפחה מצומצמת|1|ציפורה כהן
+מאיה|משפחה מצומצמת|4|טמירה כהן
+מאיה|משפחה מצומצמת|2|זוהר ומיכל כהן
+מאיה|משפחה מצומצמת|3|עדן וקורל כהן
+מאיה|משפחה מצומצמת|2|ניר ולירון כהן
+מאיה|משפחה מצומצמת|5|אביב ואור כהן
+מאיה|משפחה מצומצמת|2|נוי כהן
+ראם|צוות|1|הלל אבהרמי
+ראם|צוות|1|גלעד אבני
+ראם|צוות|1|משה ביטון
+ראם|צוות|1|קורן בוזגלו
+ראם|צוות|2|יפתח דשא
+ראם|צוות|1|עידו דלמן
+ראם|צוות|2|אביתר גרוס
+ראם|צוות|1|עוז עזרא
+ראם|צוות|2|עילאי חורי
+ראם|צוות|2|אורי אלחרר
+ראם|צוות|1|הלל פרידמן
+ראם|צוות|2|עומר גינת
+ראם|צוות|1|עומר הוז
+ראם|צוות|2|תומר כחלון
+ראם|צוות|2|גל קרוסני
+ראם|צוות|2|אופק לובטון
+ראם|צוות|2|אורי ליבנה
+ראם|צוות|2|יואב לאנג
+ראם|צוות|2|תומר מלאכי
+ראם|צוות|2|אלישמע ניומן
+ראם|צוות|1|נדב נחמני
+ראם|צוות|1|איתמר רון
+ראם|צוות|2|אשד שישא
+ראם|צוות|2|הלל זיני
+ראם|צוות|1|יהונתן זילברמן
+ראם|צוות|1|עודד ברוש
+ראם|צוות|1|אופיר בוחניק
+ראם|צבא ראם|1|עומרי חנן
+מאיה|צבא מאיה|1|ליאם אבוקסיס
+מאיה|צבא מאיה|1|מאיה אקהאוס
+מאיה|צבא מאיה|1|נעמי פינקלשטיין
+מאיה|צבא מאיה|1|שיר טל
+מאיה|צבא מאיה|1|שרונה ורבר
+מאיה|צבא מאיה|1|אוהד גמזו
+מאיה|צבא מאיה|1|שחר בלו
+מאיה|צבא מאיה|2|איתי נאקאש
+מאיה|צבא מאיה|1|נמרוד
+מאיה|צבא מאיה|1|קרן פז
+מאיה|צבא מאיה|1|טליה אניש
+מאיה|צבא מאיה|1|מיה ניב
+מאיה|צבא מאיה|1|איב סלע
+מאיה|צבא מאיה|1|פאיז גדבאן
+מאיה|צבא מאיה|1|אביגיל טויטו
+מאיה|צבא מאיה|1|נדיה בר
+מאיה|צבא מאיה|1|דנה לרנר
+מאיה|צבא מאיה|1|נעה כידון
+מאיה|צבא מאיה|1|נגה ינאי
+מאיה|צבא מאיה|1|אורי ניר
+מאיה|צבא מאיה|1|תומר שוהם
+מאיה|צבא מאיה|1|יובל שומר
+מאיה|צבא מאיה|1|אופיר
+מאיה|צבא מאיה|1|קורל
+מאיה|צבא מאיה|1|אוראל בוזגלו
+ראם|עבודה בגירה|1|מרקו קובאס
+ראם|עבודה בגירה|1|איתי הקר
+ראם|עבודה בגירה|1|רון סיבוני
+ראם|עבודה בגירה|1|עידן פריצקי
+ראם|עבודה בגירה|1|אלכסי
+ראם|עבודה בגירה|1|גידי סמך
+ראם|עבודה בגירה|1|דניאל בר נתן
+ראם|עבודה בגירה|1|ניב מלמד
+ראם|עבודה בגירה|1|אוראל
+ראם|עבודה בגירה|1|אלכס
+ראם|עבודה בגירה|1|בן טייב
+ראם|עבודה בגירה|1|רון אסולין
+ראם|מכינה|1|יואב רכמן
+ראם|מכינה|1|יובל הלפרין
+ראם|מכינה|1|יהונתן מלכה
+ראם|מכינה|1|עומר יהודה
+ראם|מכינה|1|עמית כהן
+ראם|מכינה|1|נוה בן ארי
+מאיה|טניס|1|מיכאל דייקר
+מאיה|עבודה מרחבים|2|ירין בוקובזה ואור דן
+מאיה|עבודה מרחבים|3|ירין מצרי וזיו סבג
+מאיה|עבודה מרחבים|2|איתי אביבי
+מאיה|עבודה מרחבים|1|נועם עמר
+מאיה|עבודה מרחבים|1|ורוניקה בקשי
+מאיה|חברים מהתואר|1|ענבר עוז
+מאיה|חברים מהתואר|1|חושן רכמן
+מאיה|חברים מהתואר|1|איזבל רבינוביץ
+מאיה|חברים מהתואר|1|מטר עמרמי
+מאיה|חברים מהתואר|1|אורן ניסן
+מאיה|חברים מהתואר|1|שוהם שאולוף
+מאיה|חברים מהתואר|1|מתן גרשלר
+מאיה|חברים מהתואר|1|דויד טיאר
+מאיה|חברים מהתואר|1|אלעד גרמן
+מאיה|חברים מהתואר|1|רומי צור
+מאיה|חברים מהתואר|1|עדן ברק
+מאיה|חברים מהתואר|1|מאיה ביבש
+מאיה|חברים מהתואר|1|ליאור אבריל
+מאיה|חברים מהשליחות|1|גלעד ווייס
+מאיה|חברים מהשליחות|1|רועי דר
+מאיה|חברים מהשליחות|1|אמיתי תדמור
+מאיה|חברים מהשליחות|2|עומרי חשפר
+מאיה|חברים מהשליחות|1|גל חלפון
+מאיה|חברים מהשליחות|1|שחר בזרנו
+מאיה|חברים מהשליחות|1|נועה פינגרמן
+מאיה|חברים מהשליחות|1|יסמין פינגרמן
+מאיה|חברים מהשליחות|4|משפחת הרשקוביץ
+מאיה|חברים מהשליחות|3|משפחת בן דור
+ראם|חברים מהמושב|2|מאי חן
+ראם|חברים מהמושב|1|יהונתן אביתן
+ראם|חברים מהמושב|1|אפיק אסיף
+ראם|חברים מהמושב|1|אביאל חכמי
+ראם|חברים מהמושב|1|יובל גב
+ראם|חברים מהמושב|1|אורי אדרי
+ראם|חברים מהמושב|1|תהל אדרי
+ראם|חברים מהמושב|1|זיו קטני
+ראם|חברים מהמושב|1|אלון בן דיין
+ראם|חברים מהמושב|2|תומר גרינברג
+ראם|חברים מהמושב|1|רז שחף
+ראם|חברים מהמושב|1|עומר כשדאי
+מאיה|חברים מהגדנע|1|בר פולג
+מאיה|חברים מהגדנע|1|גל קינן
+מאיה|חברים מהגדנע|1|עופרי טגנר
+מאיה|חברים מהגדנע|1|נועם יגב
+מאיה|חברים יובל וגיא|1|שובל בן ארבון
+מאיה|חברים יובל וגיא|1|ירין אמסלם
+מאיה|חברים יובל וגיא|1|יונתן אלמלם
+מאיה|חברות מהטיול|1|נעה סט
+מאיה|חברות מהטיול|1|תמר שמייה
+מאיה|העמק|2|אושרי בן ארבון
+מאיה|העמק|1|נועה גדעוני
+מאיה|העמק|2|רותם פנסחי
+מאיה|העמק|1|גיא כהן
+מאיה|העמק|1|יורן אליה
+מאיה|העמק|1|מעיין דיין
+מאיה|העמק|1|מעיין ברדריאן
+מאיה|העמק|2|עוז לוי
+מאיה|העמק|2|מאיה שמש
+מאיה|העמק|1|טל לרוס
+מאיה|העמק|1|עומר שריקי
+מאיה|העמק|1|יונתן גדעוני
+מאיה|גרעינרים|2|ליהיא ויוני
+ראם|חברים של ירדן|1|לימור לביא
+ראם|חברים של רותם|1|מיה - הזמנה נפרדת
+ראם|חברים של הורים|2|דניאל ותקווה
+ראם|חברים של הורים|1|דליה סופר
+ראם|חברים של הורים|2|עובד סופר
+ראם|חברים של הורים|2|ספיר איפרגן
+ראם|חברים של הורים|2|ליז אוטמזגין
+ראם|חברים של הורים|2|חלי אדרי
+ראם|חברים של הורים|2|מאי וקנין
+ראם|חברים של הורים|2|סופר דור
+ראם|חברים של הורים|2|סופר מנשה
+ראם|חברים של הורים|1|סופר יקיר
+ראם|חברים של הורים|1|שילת זגורי
+ראם|חברים של הורים|3|סופר אורנה
+ראם|חברים של הורים|2|מור כהן
+ראם|חברים של הורים|1|דיה
+ראם|חברים של הורים|1|הדס לחמי
+ראם|חברים של הורים|3|סויסה חגית
+ראם|חברים של הורים|2|סויסה נווה
+ראם|חברים של הורים|1|שון סויסה
+ראם|חברים של הורים|4|מדר סיגל
+ראם|חברים של הורים|2|ליאור וצח
+ראם|חברים של הורים|2|יובל מדר
+ראם|חברים של הורים|5|סופר אבי
+ראם|חברים של הורים|1|ברטה
+ראם|חברים של הורים|1|שחר חיה
+ראם|חברים של הורים|1|דיין אלי
+ראם|חברים של הורים|1|אסף ענת
+ראם|חברים של הורים|1|מחלוף לאה
+ראם|חברים של הורים|1|דיין יאיר
+ראם|חברים של הורים|1|שלום סופר
+`;
+
+      const normalizeName = (name) => String(name || "")
+        .replace(/[\s\u200f\u200e־-]/g, "")
+        .replace(/[״"']/g, "")
+        .toLowerCase();
+
+      const existingNames = new Set(state.guests.map((g) => normalizeName(g.fullName)));
+      const seenNames = new Set();
+      const samples = [];
+
+      seedLines.split("\n").map((line) => line.trim()).filter(Boolean).forEach((line) => {
+        const [rawSide, group, countText, ...nameParts] = line.split("|");
+        const fullName = nameParts.join("|").trim();
+        const nameKey = normalizeName(fullName);
+        if (!fullName || seenNames.has(nameKey) || existingNames.has(nameKey)) return;
+        seenNames.add(nameKey);
+        samples.push({
+          fullName,
+          greetingName: fullName,
+          phone: "",
+          side: sideHebrew[rawSide] || "משותף",
+          group,
+          invitedCount: Math.max(1, parseInt(countText, 10) || 1),
+          confirmedCount: 0,
+          status: "pending",
+          tableNumber: "",
+          notes: "",
+          inviteSent: false,
+          reminder7dSent: false,
+          reminder24hSent: false
+        });
+      });
+
+      if (!samples.length) {
+        showToast("כל המוזמנים ברשימת החתונה כבר קיימים ב-Firebase", "success");
+        return;
+      }
+
+      try {
+        for (let i = 0; i < samples.length; i += 400) {
+          const batch = writeBatch(db);
+          samples.slice(i, i + 400).forEach((g) => {
+            const ref = doc(db, "guests", generateGuestId());
+            batch.set(ref, { ...g, updatedAt: serverTimestamp(), rsvpUpdatedAt: null });
+          });
+          await batch.commit();
+        }
+        // Ensure settings/wedding exists too so public RSVP links look great immediately
+        const settingsSnap = await getDoc(doc(db, "settings", "wedding"));
+        if (!settingsSnap.exists()) {
+          const batch = writeBatch(db);
+          batch.set(doc(db, "settings", "wedding"), state.settings);
+          await batch.commit();
+        }
+        showToast(`נוספו ${samples.length} מוזמנים חדשים; כפילויות נמנעו`, "success");
+      } catch (err) {
+        console.error("Load sample error:", err);
+        showPermissionDiagnostic(err);
+        showToast("שגיאה בכתיבת נתוני הדוגמה ל-Firebase", "error");
+      }
+    }
+
+    // =========================================================================
+    // I. SMART EXCEL / CSV / GOOGLE SHEETS IMPORT ENGINE
+    // =========================================================================
+    function extractRowFields(rawObj) {
+      const lower = {};
+      Object.keys(rawObj).forEach((k) => {
+        lower[String(k).trim().toLowerCase()] = rawObj[k];
+      });
+      const pick = (keys) => {
+        for (const k of keys) {
+          if (lower[k] !== undefined && String(lower[k]).trim() !== "") {
+            return String(lower[k]).trim();
+          }
+        }
+        return "";
+      };
+
+      const fullName = pick(["שם מלא", "שם", "מוזמן", "full name", "fullname", "name"]);
+      const greetingName = pick(["שם להודעה", "שם פנייה", "פנייה", "greeting", "greetingname"]) || fullName;
+      const rawPhone = pick(["טלפון", "פלאפון", "נייד", "מספר טלפון", "phone", "mobile", "tel"]);
+      const rawSide = pick(["צד", "שיוך", "side"]);
+      const group = pick(["קבוצה", "קטגוריה", "group", "category"]) || "חברים";
+      const rawCount = pick(["כמות מוזמנים", "כמות", "מוזמנים", "invited", "count"]);
+      const tableNumber = pick(["שולחן", "מספר שולחן", "table", "tablenumber"]);
+      const notes = pick(["הערות", "אלרגיות", "תזונה", "notes"]);
+
+      const side = ["חתן", "כלה", "משותף"].includes(rawSide) ? rawSide : "משותף";
+      const invitedCount = Math.max(1, parseInt(rawCount, 10) || 1);
+
+      return { fullName, greetingName, rawPhone, side, group, invitedCount, tableNumber, notes };
+    }
+
+    function processImportRows(rawRows) {
+      if (!rawRows || !rawRows.length) {
+        showToast("לא נמצאו נתונים לייבוא", "error");
+        return;
+      }
+
+      const existingPhones = new Set(state.guests.map((g) => g.phone));
+      const seenInFile = new Set();
+
+      state.importRows = rawRows
+        .map((row) => {
+          const f = extractRowFields(row);
+          if (!f.fullName && !f.rawPhone) return null;
+
+          const phoneRes = normalizeIsraeliPhone(f.rawPhone);
+          let vStatus = "valid";
+          let vNote = "תקין";
+
+          if (!f.fullName) {
+            vStatus = "error";
+            vNote = "חסר שם מלא";
+          } else if (!phoneRes.valid) {
+            vStatus = "error";
+            vNote = phoneRes.reason;
+          } else if (existingPhones.has(phoneRes.normalized)) {
+            vStatus = "duplicate";
+            vNote = "כבר קיים ב-Firebase";
+          } else if (seenInFile.has(phoneRes.normalized)) {
+            vStatus = "duplicate";
+            vNote = "כפילות בתוך הקובץ";
+          }
+
+          if (phoneRes.valid) seenInFile.add(phoneRes.normalized);
+
+          return {
+            ...f,
+            normalizedPhone: phoneRes.normalized,
+            vStatus,
+            vNote
+          };
+        })
+        .filter(Boolean);
+
+      renderImportPreview();
+    }
+
+    function renderImportPreview() {
+      const section = document.getElementById("import-preview-section");
+      const tbody = document.getElementById("import-preview-body");
+
+      if (!state.importRows.length) {
+        section.classList.add("hidden");
+        return;
+      }
+
+      section.classList.remove("hidden");
+      const valid = state.importRows.filter((r) => r.vStatus === "valid").length;
+      const dups = state.importRows.filter((r) => r.vStatus === "duplicate").length;
+      const errs = state.importRows.filter((r) => r.vStatus === "error").length;
+
+      document.getElementById("import-badge-valid").textContent = `${valid} תקינים`;
+      document.getElementById("import-badge-dup").textContent = `${dups} כפילויות`;
+      document.getElementById("import-badge-invalid").textContent = `${errs} שגיאות`;
+      updateCommitImportBtn();
+
+      tbody.innerHTML = state.importRows.map((r) => {
+        const bg = r.vStatus === "valid" ? "bg-emerald-50/40" : r.vStatus === "duplicate" ? "bg-amber-50/70" : "bg-rose-50/70";
+        const badge = r.vStatus === "valid" ? "bg-emerald-100 text-emerald-800" : r.vStatus === "duplicate" ? "bg-amber-100 text-amber-900" : "bg-rose-100 text-rose-800";
+        return `
+          <tr class="${bg}">
+            <td class="py-2.5 px-3 whitespace-nowrap"><span class="text-xs font-semibold px-2 py-0.5 rounded-lg ${badge}">${escapeHtml(r.vNote)}</span></td>
+            <td class="py-2.5 px-3 font-medium text-stone-900">${escapeHtml(r.fullName || "—")}</td>
+            <td class="py-2.5 px-3 text-stone-600">${escapeHtml(r.greetingName || "—")}</td>
+            <td class="py-2.5 px-3 font-mono text-xs whitespace-nowrap" dir="ltr">
+              <span class="text-stone-500">${escapeHtml(r.rawPhone || "—")}</span>
+              ${r.vStatus !== "error" ? ` → <strong class="text-emerald-700">${escapeHtml(r.normalizedPhone)}</strong>` : ""}
+            </td>
+            <td class="py-2.5 px-3 text-xs">${escapeHtml(r.side)} / ${escapeHtml(r.group)}</td>
+            <td class="py-2.5 px-3 text-center font-semibold">${r.invitedCount}</td>
+            <td class="py-2.5 px-3 text-xs">${escapeHtml(r.tableNumber || "—")}</td>
+          </tr>
+        `;
+      }).join("");
+      refreshIcons();
+    }
+
+    function updateCommitImportBtn() {
+      const skipDups = document.getElementById("import-skip-dups").checked;
+      const eligible = state.importRows.filter((r) => r.vStatus === "valid" || (!skipDups && r.vStatus === "duplicate"));
+      const btn = document.getElementById("btn-commit-import");
+      document.getElementById("btn-commit-import-text").textContent = `שמור ${eligible.length} מוזמנים ל-Firebase`;
+      btn.disabled = eligible.length === 0;
+    }
+
+    function handleUploadedFile(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const wb = XLSX.read(data, { type: "array" });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+          processImportRows(rows);
+        } catch (err) {
+          console.error("File parse error:", err);
+          showToast("שגיאה בקריאת הקובץ — ודאו שזהו קובץ Excel או CSV תקין", "error");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function downloadSampleXlsx() {
+      const sample = [
+        { "שם מלא": "משה ורחל כהן", "שם להודעה": "דוד משה ודודה רחל", "טלפון": "050-1234567", "צד": "חתן", "קבוצה": "משפחה", "כמות מוזמנים": 2, "שולחן": "4" },
+        { "שם מלא": "יובל לוי", "שם להודעה": "יובלי", "טלפון": "052-9876543", "צד": "כלה", "קבוצה": "חברים", "כמות מוזמנים": 2, "שולחן": "11" },
+        { "שם מלא": "דנה ואיתי מזרחי", "שם להודעה": "דנה ואיתי", "טלפון": "054-5551234", "צד": "משותף", "קבוצה": "עבודה", "כמות מוזמנים": 2, "שולחן": "" }
+      ];
+      const ws = XLSX.utils.json_to_sheet(sample);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "מוזמנים");
+      XLSX.writeFile(wb, "תבנית_מוזמנים_לחתונה.xlsx");
+      showToast("קובץ התבנית ירד למחשב!", "success");
+    }
+
+    function exportGuestsExcel() {
+      if (!state.guests.length) {
+        showToast("אין מוזמנים לייצוא כרגע", "info");
+        return;
+      }
+      const rows = state.guests.map((g) => ({
+        "שם מלא": g.fullName,
+        "שם להודעה": g.greetingName,
+        "טלפון": formatPhoneDisplay(g.phone),
+        "טלפון בינלאומי": g.phone,
+        "צד": g.side,
+        "קבוצה": g.group,
+        "מוזמנים": g.invitedCount,
+        "אישרו בפועל": g.confirmedCount,
+        "סטטוס": (STATUS_MAP[g.status] || STATUS_MAP.pending).label,
+        "שולחן": g.tableNumber || "",
+        "הערות": g.notes || "",
+        "נשלחה הזמנה": g.inviteSent ? "כן" : "לא",
+        "תזכורת 7 ימים": g.reminder7dSent ? "כן" : "לא",
+        "תזכורת 24 שעות": g.reminder24hSent ? "כן" : "לא",
+        "קישור אישי RSVP": buildRsvpUrl(g.id)
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "רשימת מוזמנים");
+      XLSX.writeFile(wb, `מוזמנים_${state.settings.eventDate || "חתונה"}.xlsx`);
+      showToast("הרשימה יוצאה בהצלחה ל-Excel!", "success");
+    }
+
+    // =========================================================================
+    // J. PUBLIC GUEST RSVP PAGE & ADMIN PREVIEW OVERLAY
+    // =========================================================================
+    async function loadPublicGuestRsvp(guestId) {
+      document.getElementById("auth-view").classList.add("hidden");
+      document.getElementById("admin-view").classList.add("hidden");
+      document.getElementById("rsvp-admin-preview-bar").classList.add("hidden");
+      document.getElementById("rsvp-shell").classList.remove("hidden");
+
+      state.rsvpGuestId = guestId;
+      state.rsvpIsAdminPreview = false;
+
+      try {
+        const [settingsSnap, guestSnap] = await Promise.all([
+          getDoc(doc(db, "settings", "wedding")),
+          getDoc(doc(db, "guests", guestId))
+        ]);
+
+        if (settingsSnap.exists()) {
+          state.settings = cloneSettings(settingsSnap.data());
+        }
+
+        if (!guestSnap.exists()) {
+          renderRsvpHeader();
+          document.getElementById("rsvp-main-body").classList.add("hidden");
+          document.getElementById("rsvp-error-state").classList.remove("hidden");
+          document.getElementById("rsvp-error-title").textContent = "ההזמנה האישית לא נמצאה";
+          document.getElementById("rsvp-error-desc").textContent = "ייתכן שהקישור שגוי או שהרשומה נמחקה. נשמח שתצרו איתנו קשר ישירות!";
+          refreshIcons();
+          return;
+        }
+
+        state.rsvpGuestData = { id: guestSnap.id, ...guestSnap.data() };
+        renderRsvpGuestUI();
+      } catch (err) {
+        console.error("Public RSVP fetch error:", err);
+        renderRsvpHeader();
+        document.getElementById("rsvp-main-body").classList.add("hidden");
+        document.getElementById("rsvp-error-state").classList.remove("hidden");
+        document.getElementById("rsvp-error-title").textContent = "לא ניתן לטעון את ההזמנה כרגע";
+        document.getElementById("rsvp-error-desc").textContent =
+          err.code === "permission-denied"
+            ? "יש להפעיל הרשאת קריאה ציבורית ל-settings/wedding ול-guests ב-Firestore Rules."
+            : "בדקו את החיבור לאינטרנט ונסו לרענן את הדף.";
+        refreshIcons();
+      }
+    }
+
+    function openAdminRsvpPreview(guest) {
+      state.rsvpGuestId = guest.id;
+      state.rsvpGuestData = { ...guest };
+      state.rsvpIsAdminPreview = true;
+
+      document.getElementById("admin-view").classList.add("hidden");
+      document.getElementById("rsvp-shell").classList.remove("hidden");
+      document.getElementById("rsvp-admin-preview-bar").classList.remove("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      renderRsvpGuestUI();
+    }
+
+    function renderRsvpHeader() {
+      const s = state.settings;
+      document.getElementById("rsvp-couple-names").textContent = s.coupleNames || DEFAULT_SETTINGS.coupleNames;
+      document.getElementById("rsvp-date-header").textContent = formatHebrewDate(s.eventDate);
+      document.getElementById("rsvp-full-date").textContent = formatHebrewDate(s.eventDate);
+      document.getElementById("rsvp-time").textContent = s.eventTime || "19:30";
+      document.getElementById("rsvp-venue-name").textContent = s.venueName || "גן האירועים";
+      document.getElementById("rsvp-venue-address").textContent = s.venueAddress || "";
+      document.getElementById("rsvp-subtitle").textContent = s.invitationSubtitle || DEFAULT_SETTINGS.invitationSubtitle;
+
+      const wazeLink = s.wazeUrl || `https://waze.com/ul?q=${encodeURIComponent([s.venueName, s.venueAddress].filter(Boolean).join(" "))}`;
+      document.getElementById("rsvp-waze-btn").href = wazeLink;
+      document.getElementById("rsvp-gcal-btn").href = buildGoogleCalendarUrl(s);
+    }
+
+    function renderRsvpGuestUI() {
+      renderRsvpHeader();
+      const g = state.rsvpGuestData;
+      document.getElementById("rsvp-error-state").classList.add("hidden");
+      document.getElementById("rsvp-main-body").classList.remove("hidden");
+      document.getElementById("rsvp-form").classList.remove("hidden");
+      document.getElementById("rsvp-confirmation-box").classList.add("hidden");
+
+      document.getElementById("rsvp-greeting-name").textContent = g.greetingName || g.fullName || "אורח יקר";
+      document.getElementById("rsvp-notes-input").value = g.notes || "";
+
+      state.rsvpChoice = g.status && g.status !== "pending" ? g.status : null;
+      state.rsvpCount = g.confirmedCount > 0 ? g.confirmedCount : Math.max(1, Number(g.invitedCount) || 1);
+      document.getElementById("rsvp-count-display").textContent = state.rsvpCount;
+      updateRsvpChoiceStyles();
+      refreshIcons();
+    }
+
+    function updateRsvpChoiceStyles() {
+      const sel = state.rsvpChoice;
+      document.querySelectorAll(".rsvp-choice-btn").forEach((btn) => {
+        const val = btn.dataset.choice;
+        const active = val === sel;
+        const check = btn.querySelector(".choice-check");
+
+        btn.classList.remove(
+          "border-emerald-500", "bg-emerald-50/70", "text-emerald-950",
+          "border-amber-500", "bg-amber-50/70", "text-amber-950",
+          "border-rose-400", "bg-rose-50/70", "text-rose-950",
+          "border-stone-200", "text-stone-800"
+        );
+
+        if (active) {
+          check.classList.remove("hidden");
+          if (val === "confirmed") btn.classList.add("border-emerald-500", "bg-emerald-50/70", "text-emerald-950");
+          if (val === "maybe") btn.classList.add("border-amber-500", "bg-amber-50/70", "text-amber-950");
+          if (val === "declined") btn.classList.add("border-rose-400", "bg-rose-50/70", "text-rose-950");
+        } else {
+          check.classList.add("hidden");
+          btn.classList.add("border-stone-200", "text-stone-800");
+        }
+      });
+
+      const stepper = document.getElementById("rsvp-stepper-box");
+      if (sel === "confirmed" || sel === "maybe") {
+        stepper.classList.remove("hidden");
+      } else {
+        stepper.classList.add("hidden");
+      }
+    }
+
+    // =========================================================================
+    // K. UI EVENT LISTENERS
+    // =========================================================================
+
+    // Rules Helper Modal Triggers
+    const openRulesModal = () => {
+      document.getElementById("rules-modal").classList.remove("hidden");
+      refreshIcons();
+    };
+    document.getElementById("btn-open-rules-auth").addEventListener("click", openRulesModal);
+    document.getElementById("btn-open-rules-header").addEventListener("click", openRulesModal);
+    document.getElementById("btn-diag-open-rules").addEventListener("click", openRulesModal);
+    document.getElementById("close-rules-modal").addEventListener("click", () => {
+      document.getElementById("rules-modal").classList.add("hidden");
+    });
+    document.getElementById("btn-copy-rules").addEventListener("click", () => {
+      copyText(document.getElementById("firestore-rules-code").textContent, "חוקי ה-Firestore הועתקו ללוח!");
+    });
+
+    // Admin Tab Switching
+    function switchAdminTab(tabKey) {
+      state.activeTab = tabKey;
+      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
+      document.getElementById(`panel-${tabKey}`).classList.remove("hidden");
+
+      document.querySelectorAll(".admin-tab").forEach((btn) => {
+        const active = btn.dataset.tab === tabKey;
+        btn.className = active
+          ? "admin-tab whitespace-nowrap flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 border-stone-900 text-stone-900 transition"
+          : "admin-tab whitespace-nowrap flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 border-transparent text-stone-500 hover:text-stone-800 transition";
+      });
+      if (tabKey === "templates") {
+        renderTemplateEditor();
+        renderWhatsAppPreview();
+      }
+      refreshIcons();
+    }
+
+    document.querySelectorAll(".admin-tab").forEach((btn) => {
+      btn.addEventListener("click", () => switchAdminTab(btn.dataset.tab));
+    });
+    document.getElementById("btn-empty-goto-import").addEventListener("click", () => switchAdminTab("import"));
+
+    // Filters
+    ["filter-search", "filter-status", "filter-side"].forEach((id) => {
+      document.getElementById(id).addEventListener("input", () => { renderGuestsList(); refreshIcons(); });
+      document.getElementById(id).addEventListener("change", () => { renderGuestsList(); refreshIcons(); });
+    });
+
+    const resetFilters = () => {
+      document.getElementById("filter-search").value = "";
+      document.getElementById("filter-status").value = "all";
+      document.getElementById("filter-side").value = "all";
+      renderGuestsList();
+      refreshIcons();
+    };
+    document.getElementById("btn-clear-filters").addEventListener("click", resetFilters);
+    document.getElementById("btn-reset-no-matches").addEventListener("click", resetFilters);
+
+    // Sample Data & Export
+    document.getElementById("btn-load-sample-toolbar").addEventListener("click", loadSampleGuestsToFirestore);
+    document.getElementById("btn-load-sample-empty").addEventListener("click", loadSampleGuestsToFirestore);
+    document.getElementById("btn-export-excel").addEventListener("click", exportGuestsExcel);
+
+    // Add / Edit Guest Modal
+    function openGuestModal(guest = null) {
+      document.getElementById("guest-modal-title").textContent = guest ? "עריכת פרטי מוזמן" : "הוספת מוזמן חדש";
+      document.getElementById("gf-id").value = guest?.id || "";
+      document.getElementById("gf-fullName").value = guest?.fullName || "";
+      document.getElementById("gf-greetingName").value = guest?.greetingName || "";
+      document.getElementById("gf-phone").value = guest ? formatPhoneDisplay(guest.phone) : "";
+      document.getElementById("gf-status").value = guest?.status || "pending";
+      document.getElementById("gf-side").value = guest?.side || "חתן";
+      document.getElementById("gf-group").value = guest?.group || "משפחה";
+      document.getElementById("gf-invitedCount").value = guest?.invitedCount || 2;
+      document.getElementById("gf-confirmedCount").value = guest?.confirmedCount ?? 0;
+      document.getElementById("gf-tableNumber").value = guest?.tableNumber || "";
+      document.getElementById("gf-notes").value = guest?.notes || "";
+      document.getElementById("gf-inviteSent").checked = Boolean(guest?.inviteSent);
+      document.getElementById("gf-reminder7dSent").checked = Boolean(guest?.reminder7dSent);
+      document.getElementById("gf-reminder24hSent").checked = Boolean(guest?.reminder24hSent);
+      document.getElementById("guest-modal").classList.remove("hidden");
+      refreshIcons();
+    }
+
+    const closeGuestModal = () => document.getElementById("guest-modal").classList.add("hidden");
+    document.getElementById("btn-add-guest").addEventListener("click", () => openGuestModal(null));
+    document.getElementById("close-guest-modal").addEventListener("click", closeGuestModal);
+    document.getElementById("cancel-guest-modal").addEventListener("click", closeGuestModal);
+
+    document.getElementById("gf-status").addEventListener("change", (e) => {
+      const inv = parseInt(document.getElementById("gf-invitedCount").value, 10) || 1;
+      const confEl = document.getElementById("gf-confirmedCount");
+      if (e.target.value === "confirmed" && Number(confEl.value) === 0) confEl.value = inv;
+      if (e.target.value === "declined" || e.target.value === "pending") confEl.value = 0;
+    });
+
+    document.getElementById("guest-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const phoneRes = normalizeIsraeliPhone(document.getElementById("gf-phone").value);
+      if (!phoneRes.valid) {
+        showToast("אנא הזינו מספר טלפון נייד ישראלי תקין (למשל 050-1234567)", "error");
+        return;
+      }
+      const existingId = document.getElementById("gf-id").value || null;
+      try {
+        await saveGuest({
+          fullName: document.getElementById("gf-fullName").value,
+          greetingName: document.getElementById("gf-greetingName").value,
+          phone: phoneRes.normalized,
+          status: document.getElementById("gf-status").value,
+          side: document.getElementById("gf-side").value,
+          group: document.getElementById("gf-group").value,
+          invitedCount: document.getElementById("gf-invitedCount").value,
+          confirmedCount: document.getElementById("gf-confirmedCount").value,
+          tableNumber: document.getElementById("gf-tableNumber").value,
+          notes: document.getElementById("gf-notes").value,
+          inviteSent: document.getElementById("gf-inviteSent").checked,
+          reminder7dSent: document.getElementById("gf-reminder7dSent").checked,
+          reminder24hSent: document.getElementById("gf-reminder24hSent").checked
+        }, existingId);
+        closeGuestModal();
+        showToast(existingId ? "פרטי המוזמן עודכנו בזמן אמת!" : "המוזמן נשמר ב-Firebase!", "success");
+      } catch (err) {
+        console.error("Save guest error:", err);
+        showPermissionDiagnostic(err);
+        showToast("שגיאה בשמירת המוזמן", "error");
+      }
+    });
+
+    // Delegated Actions on Guests Table & Cards
+    async function handleGuestRowClick(target) {
+      const el = target.closest("[data-action]");
+      if (!el) return;
+      const action = el.dataset.action;
+      const id = el.dataset.id;
+      const guest = state.guests.find((g) => g.id === id);
+      if (!guest) return;
+
+      try {
+        if (action === "toggle-flag") {
+          const flag = el.dataset.flag;
+          await updateDoc(doc(db, "guests", id), {
+            [flag]: !guest[flag],
+            updatedAt: serverTimestamp()
+          });
+          showToast("סטטוס השליחה עודכן", "success");
+        } else if (action === "copy-link") {
+          copyText(buildRsvpUrl(id), `קישור ה-RSVP של ${guest.fullName} הועתק!`);
+        } else if (action === "preview-rsvp") {
+          openAdminRsvpPreview(guest);
+        } else if (action === "edit") {
+          openGuestModal(guest);
+        } else if (action === "delete") {
+          const ok = await showConfirm(
+            "מחיקת מוזמן",
+            `האם למחוק את "${guest.fullName}" מ-Firebase? הפעולה תתעדכן מיד אצל שניכם.`,
+            "מחק מוזמן",
+            true
+          );
+          if (ok) {
+            await deleteDoc(doc(db, "guests", id));
+            showToast("המוזמן נמחק בהצלחה", "info");
+          }
+        }
+      } catch (err) {
+        console.error("Guest action error:", err);
+        showPermissionDiagnostic(err);
+        showToast("שגיאה בביצוע הפעולה ב-Firebase", "error");
+      }
+    }
+
+    ["guests-table-body", "guests-cards-container"].forEach((cid) => {
+      const container = document.getElementById(cid);
+      container.addEventListener("click", (e) => {
+        if (e.target.tagName === "SELECT") return;
+        handleGuestRowClick(e.target);
+      });
+      container.addEventListener("change", async (e) => {
+        if (e.target.dataset.action === "quick-status") {
+          const id = e.target.dataset.id;
+          const newStatus = e.target.value;
+          const guest = state.guests.find((g) => g.id === id);
+          if (!guest) return;
+
+          const patch = { status: newStatus, updatedAt: serverTimestamp() };
+          if (newStatus === "confirmed" && (!guest.confirmedCount || guest.confirmedCount === 0)) {
+            patch.confirmedCount = guest.invitedCount || 1;
+          } else if (newStatus === "declined" || newStatus === "pending") {
+            patch.confirmedCount = 0;
+          }
+          try {
+            await updateDoc(doc(db, "guests", id), patch);
+            showToast(`הסטטוס של ${guest.fullName} עודכן!`, "success");
+          } catch (err) {
+            console.error("Status update error:", err);
+            showPermissionDiagnostic(err);
+            showToast("שגיאה בעדכון סטטוס", "error");
+          }
+        }
+      });
+    });
+
+    // Import Tab Listeners
+    document.getElementById("btn-download-sample-xlsx").addEventListener("click", downloadSampleXlsx);
+    document.getElementById("btn-import-tab-file").addEventListener("click", () => {
+      document.getElementById("import-box-file").classList.remove("hidden");
+      document.getElementById("import-box-paste").classList.add("hidden");
+      document.getElementById("btn-import-tab-file").className = "px-4 py-2 rounded-lg text-sm font-semibold bg-white text-stone-900 shadow-xs transition";
+      document.getElementById("btn-import-tab-paste").className = "px-4 py-2 rounded-lg text-sm font-medium text-stone-600 hover:text-stone-900 transition";
+    });
+    document.getElementById("btn-import-tab-paste").addEventListener("click", () => {
+      document.getElementById("import-box-file").classList.add("hidden");
+      document.getElementById("import-box-paste").classList.remove("hidden");
+      document.getElementById("btn-import-tab-paste").className = "px-4 py-2 rounded-lg text-sm font-semibold bg-white text-stone-900 shadow-xs transition";
+      document.getElementById("btn-import-tab-file").className = "px-4 py-2 rounded-lg text-sm font-medium text-stone-600 hover:text-stone-900 transition";
+    });
+
+    const dropZone = document.getElementById("import-drop-zone");
+    const fileInput = document.getElementById("import-file-input");
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files[0]) handleUploadedFile(e.target.files[0]);
+      fileInput.value = "";
+    });
+    dropZone.addEventListener("dragover", (e) => { e.preventDefault(); dropZone.classList.add("border-amber-500", "bg-amber-50/50"); });
+    dropZone.addEventListener("dragleave", () => dropZone.classList.remove("border-amber-500", "bg-amber-50/50"));
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("border-amber-500", "bg-amber-50/50");
+      if (e.dataTransfer.files[0]) handleUploadedFile(e.dataTransfer.files[0]);
+    });
+
+    document.getElementById("btn-parse-paste").addEventListener("click", () => {
+      const text = document.getElementById("import-paste-input").value.trim();
+      if (!text) return showToast("אנא הדביקו טבלה לפני הבדיקה", "error");
+      const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+      if (lines.length < 2) return showToast("נדרשת שורת כותרות ולפחות שורת מוזמן אחת", "error");
+      const sep = lines[0].includes("\t") ? "\t" : ",";
+      const headers = lines[0].split(sep).map((h) => h.trim().replace(/^"|"$/g, ""));
+      const rows = lines.slice(1).map((line) => {
+        const vals = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, ""));
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
+        return obj;
+      });
+      processImportRows(rows);
+    });
+
+    document.getElementById("import-skip-dups").addEventListener("change", updateCommitImportBtn);
+    document.getElementById("btn-clear-import").addEventListener("click", () => {
+      state.importRows = [];
+      document.getElementById("import-paste-input").value = "";
+      renderImportPreview();
+    });
+
+    document.getElementById("btn-commit-import").addEventListener("click", async () => {
+      const skipDups = document.getElementById("import-skip-dups").checked;
+      const toSave = state.importRows.filter((r) => r.vStatus === "valid" || (!skipDups && r.vStatus === "duplicate"));
+      if (!toSave.length) return;
+
+      const btn = document.getElementById("btn-commit-import");
+      btn.disabled = true;
+
+      try {
+        // Chunk by 400 to respect Firestore 500-write batch limit
+        for (let i = 0; i < toSave.length; i += 400) {
+          const chunk = toSave.slice(i, i + 400);
+          const batch = writeBatch(db);
+          chunk.forEach((r) => {
+            const ref = doc(db, "guests", generateGuestId());
+            batch.set(ref, {
+              fullName: r.fullName,
+              greetingName: r.greetingName || r.fullName,
+              phone: r.normalizedPhone,
+              side: r.side,
+              group: r.group,
+              invitedCount: r.invitedCount,
+              confirmedCount: 0,
+              status: "pending",
+              tableNumber: r.tableNumber || "",
+              notes: r.notes || "",
+              inviteSent: false,
+              reminder7dSent: false,
+              reminder24hSent: false,
+              updatedAt: serverTimestamp(),
+              rsvpUpdatedAt: null
+            });
+          });
+          await batch.commit();
+        }
+        state.importRows = [];
+        document.getElementById("import-paste-input").value = "";
+        renderImportPreview();
+        showToast(`נשמרו בהצלחה ${toSave.length} מוזמנים ל-Firebase!`, "success");
+        switchAdminTab("guests");
+      } catch (err) {
+        console.error("Batch import error:", err);
+        showPermissionDiagnostic(err);
+        showToast("שגיאה בשמירת המוזמנים ל-Firebase", "error");
+        btn.disabled = false;
+      }
+    });
+
+    // Wedding Settings & WhatsApp Templates Listeners
+    document.getElementById("wedding-settings-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const updated = {
+        ...state.settings,
+        coupleNames: document.getElementById("ws-coupleNames").value.trim(),
+        eventDate: document.getElementById("ws-eventDate").value,
+        eventTime: document.getElementById("ws-eventTime").value,
+        venueName: document.getElementById("ws-venueName").value.trim(),
+        venueAddress: document.getElementById("ws-venueAddress").value.trim(),
+        wazeUrl: document.getElementById("ws-wazeUrl").value.trim(),
+        invitationSubtitle: document.getElementById("ws-invitationSubtitle").value.trim()
+      };
+      try {
+        await setDoc(doc(db, "settings", "wedding"), updated, { merge: true });
+        showToast("הגדרות החתונה נשמרו וסונכרנו!", "success");
+      } catch (err) {
+        console.error("Save settings error:", err);
+        showPermissionDiagnostic(err);
+        showToast("שגיאה בשמירת הגדרות האירוע", "error");
+      }
+    });
+
+    document.querySelectorAll(".tpl-selector").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.settings.templates[state.activeTplKey] = document.getElementById("template-textarea").value;
+        state.activeTplKey = btn.dataset.tpl;
+        renderTemplateEditor();
+        renderWhatsAppPreview();
+      });
+    });
+
+    document.getElementById("template-textarea").addEventListener("input", (e) => {
+      state.settings.templates[state.activeTplKey] = e.target.value;
+      renderWhatsAppPreview();
+    });
+
+    document.querySelectorAll(".var-chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const ta = document.getElementById("template-textarea");
+        const token = chip.dataset.var;
+        const start = ta.selectionStart ?? ta.value.length;
+        const end = ta.selectionEnd ?? ta.value.length;
+        ta.value = ta.value.slice(0, start) + token + ta.value.slice(end);
+        ta.focus();
+        ta.setSelectionRange(start + token.length, start + token.length);
+        state.settings.templates[state.activeTplKey] = ta.value;
+        renderWhatsAppPreview();
+      });
+    });
+
+    document.getElementById("wa-preview-guest-select").addEventListener("change", renderWhatsAppPreview);
+
+    document.getElementById("btn-save-templates").addEventListener("click", async () => {
+      state.settings.templates[state.activeTplKey] = document.getElementById("template-textarea").value;
+      try {
+        await setDoc(doc(db, "settings", "wedding"), state.settings, { merge: true });
+        showToast("כל 4 תבניות ה-WhatsApp נשמרו ב-Firebase!", "success");
+      } catch (err) {
+        console.error("Save templates error:", err);
+        showPermissionDiagnostic(err);
+        showToast("שגיאה בשמירת התבניות", "error");
+      }
+    });
+
+    document.getElementById("btn-wa-test-open").addEventListener("click", () => {
+      const guest = getSelectedPreviewGuest();
+      const text = renderTemplateText(document.getElementById("template-textarea").value, guest);
+      window.open(`https://wa.me/${guest.phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+    });
+
+    // RSVP Guest Form & Admin Preview Listeners
+    document.getElementById("btn-close-rsvp-preview").addEventListener("click", () => {
+      document.getElementById("rsvp-shell").classList.add("hidden");
+      document.getElementById("rsvp-admin-preview-bar").classList.add("hidden");
+      document.getElementById("admin-view").classList.remove("hidden");
+    });
+
+    document.querySelectorAll(".rsvp-choice-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.rsvpChoice = btn.dataset.choice;
+        if ((state.rsvpChoice === "confirmed" || state.rsvpChoice === "maybe") && state.rsvpCount < 1) {
+          state.rsvpCount = 1;
+          document.getElementById("rsvp-count-display").textContent = state.rsvpCount;
+        }
+        updateRsvpChoiceStyles();
+      });
+    });
+
+    document.getElementById("rsvp-minus-btn").addEventListener("click", () => {
+      if (state.rsvpCount > 1) {
+        state.rsvpCount--;
+        document.getElementById("rsvp-count-display").textContent = state.rsvpCount;
+      }
+    });
+
+    document.getElementById("rsvp-plus-btn").addEventListener("click", () => {
+      if (state.rsvpCount < 20) {
+        state.rsvpCount++;
+        document.getElementById("rsvp-count-display").textContent = state.rsvpCount;
+      }
+    });
+
+    document.getElementById("rsvp-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (!state.rsvpChoice) {
+        showToast("אנא בחרו האם תגיעו לאירוע", "error");
+        return;
+      }
+
+      const submitBtn = document.getElementById("rsvp-submit-btn");
+      submitBtn.disabled = true;
+
+      const finalCount = state.rsvpChoice === "declined" ? 0 : state.rsvpCount;
+      const notes = document.getElementById("rsvp-notes-input").value.trim();
+
+      try {
+        // STRICT 4-FIELD UPDATE to match tight Firestore Security Rules!
+        await updateDoc(doc(db, "guests", state.rsvpGuestId), {
+          status: state.rsvpChoice,
+          confirmedCount: finalCount,
+          notes: notes,
+          rsvpUpdatedAt: serverTimestamp()
+        });
+
+        // Update local guest snapshot
+        if (state.rsvpGuestData) {
+          state.rsvpGuestData.status = state.rsvpChoice;
+          state.rsvpGuestData.confirmedCount = finalCount;
+          state.rsvpGuestData.notes = notes;
+        }
+
+        // Show Confirmation Screen
+        document.getElementById("rsvp-form").classList.add("hidden");
+        document.getElementById("rsvp-confirmation-box").classList.remove("hidden");
+
+        const emoji = document.getElementById("rsvp-conf-emoji");
+        const title = document.getElementById("rsvp-conf-title");
+        const desc = document.getElementById("rsvp-conf-desc");
+        const tableBox = document.getElementById("rsvp-conf-table");
+
+        if (state.rsvpChoice === "confirmed") {
+          emoji.textContent = "🥂";
+          emoji.className = "w-16 h-16 rounded-full bg-emerald-100 text-3xl mx-auto flex items-center justify-center";
+          title.textContent = "איזה כיף! מחכים לחגוג איתכם!";
+          desc.textContent = `הגעתכם נרשמה בהצלחה עבור ${finalCount} ${finalCount === 1 ? "אורח" : "אורחים"}.`;
+        } else if (state.rsvpChoice === "maybe") {
+          emoji.textContent = "🤔";
+          emoji.className = "w-16 h-16 rounded-full bg-amber-100 text-3xl mx-auto flex items-center justify-center";
+          title.textContent = "תודה שעדכנתם!";
+          desc.textContent = "רשמנו שעדיין מתלבטים — תוכלו לחזור לקישור הזה ולעדכן בכל רגע.";
+        } else {
+          emoji.textContent = "💛";
+          emoji.className = "w-16 h-16 rounded-full bg-stone-100 text-3xl mx-auto flex items-center justify-center";
+          title.textContent = "תודה על העדכון!";
+          desc.textContent = "חבל שלא תוכלו להגיע, נתראה בשמחות הבאות!";
+        }
+
+        if (state.rsvpChoice === "confirmed" && state.rsvpGuestData?.tableNumber) {
+          document.getElementById("rsvp-conf-table-num").textContent = state.rsvpGuestData.tableNumber;
+          tableBox.classList.remove("hidden");
+        } else {
+          tableBox.classList.add("hidden");
+        }
+
+        showToast("אישור ההגעה נשמר בהצלחה!", "success");
+      } catch (err) {
+        console.error("RSVP submit error:", err);
+        showToast("שגיאה בשמירת האישור — נסו שוב בעוד רגע", "error");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    document.getElementById("btn-rsvp-change-mind").addEventListener("click", () => {
+      document.getElementById("rsvp-confirmation-box").classList.add("hidden");
+      document.getElementById("rsvp-form").classList.remove("hidden");
+    });
+
+    // Start Application
+    bootApp();
+  </script>
+</body>
+</html>
