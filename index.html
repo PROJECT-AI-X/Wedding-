@@ -2611,10 +2611,20 @@ service cloud.firestore {
       state.rsvpIsAdminPreview = false;
 
       try {
-        const [settingsSnap, guestSnap] = await Promise.all([
+        const firestoreReads = Promise.all([
           getDoc(doc(db, "settings", "wedding")),
           getDoc(doc(db, "guests", guestId))
         ]);
+        let timeoutId;
+        const loadTimeout = new Promise((resolve, reject) => {
+          timeoutId = setTimeout(() => {
+            const timeoutError = new Error("Public RSVP Firestore load timed out");
+            timeoutError.code = "firestore/timeout";
+            reject(timeoutError);
+          }, 15000);
+        });
+        const [settingsSnap, guestSnap] = await Promise.race([firestoreReads, loadTimeout])
+          .finally(() => clearTimeout(timeoutId));
 
         if (settingsSnap.exists()) {
           state.settings = cloneSettings(settingsSnap.data());
@@ -2638,10 +2648,11 @@ service cloud.firestore {
         document.getElementById("rsvp-main-body").classList.add("hidden");
         document.getElementById("rsvp-error-state").classList.remove("hidden");
         document.getElementById("rsvp-error-title").textContent = "לא ניתן לטעון את ההזמנה כרגע";
-        document.getElementById("rsvp-error-desc").textContent =
-          err.code === "permission-denied"
+        document.getElementById("rsvp-error-desc").textContent = err.code === "firestore/timeout"
+          ? "Cloud Firestore API בפרויקט wedding-f8c29 לא הגיב. ודאו שהוא מופעל ב-Google Cloud ונסו לרענן את הדף."
+          : err.code === "permission-denied"
             ? "יש להפעיל הרשאת קריאה ציבורית ל-settings/wedding ול-guests ב-Firestore Rules."
-            : "בדקו את החיבור לאינטרנט ונסו לרענן את הדף.";
+            : "בדקו את החיבור לאינטרנט ואת הגדרות Firebase ונסו לרענן את הדף.";
         refreshIcons();
       }
     }
