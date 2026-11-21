@@ -420,12 +420,12 @@ service cloud.firestore {
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 pt-2.5 border-t border-stone-100">
-            <div class="relative lg:col-span-6">
+            <div class="relative lg:col-span-4">
               <i data-lucide="search" class="w-4 h-4 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
               <input id="filter-search" type="text" placeholder="חיפוש לפי שם, טלפון, קבוצה, שולחן או הערות..." class="w-full pr-10 pl-3.5 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none transition" />
             </div>
 
-            <div class="lg:col-span-3">
+            <div class="lg:col-span-2">
               <select id="filter-status" class="w-full px-3 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm text-stone-700 focus:bg-white focus:border-amber-500 outline-none">
                 <option value="all">כל הסטטוסים</option>
                 <option value="confirmed">מגיע</option>
@@ -441,6 +441,12 @@ service cloud.firestore {
                 <option value="חתן">צד חתן</option>
                 <option value="כלה">צד כלה</option>
                 <option value="משותף">משותף</option>
+              </select>
+            </div>
+
+            <div class="lg:col-span-3 flex gap-2">
+              <select id="filter-group" aria-label="סינון לפי קבוצה" class="min-w-0 flex-1 w-full px-3 py-2.5 rounded-xl bg-stone-50 border border-stone-200 text-sm text-stone-700 focus:bg-white focus:border-amber-500 outline-none">
+                <option value="all">כל הקבוצות</option>
               </select>
               <button id="btn-clear-filters" type="button" class="px-3 py-2.5 rounded-xl border border-stone-200 hover:bg-stone-50 text-xs font-medium text-stone-600 shrink-0 transition">נקה</button>
             </div>
@@ -738,9 +744,11 @@ service cloud.firestore {
 
           <!-- Live WhatsApp Chat Bubble Preview (5 cols) -->
           <div class="lg:col-span-5 bg-white rounded-2xl border border-stone-200/80 shadow-xs p-5 flex flex-col gap-4">
-            <div class="flex items-center justify-between gap-2">
-              <h3 class="text-base font-bold text-stone-900">תצוגה מקדימה ב-WhatsApp</h3>
-              <select id="wa-preview-guest-select" class="max-w-[190px] px-2.5 py-1.5 rounded-xl border border-stone-200 bg-stone-50 text-xs outline-none"></select>
+            <div class="space-y-2">
+              <h3 class="text-base font-bold text-stone-900">בחירת מוזמן והודעת WhatsApp</h3>
+              <input id="wa-preview-guest-search" type="search" placeholder="חיפוש לפי שם או מספר טלפון..." class="w-full px-3 py-2 rounded-xl border border-stone-200 bg-stone-50 text-sm outline-none focus:border-amber-500" />
+              <select id="wa-preview-guest-select" aria-label="בחירת מוזמן לשליחת הודעה" class="w-full px-2.5 py-2 rounded-xl border border-stone-200 bg-stone-50 text-sm outline-none"></select>
+              <p id="wa-preview-recipient-status" class="hidden rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"></p>
             </div>
 
             <div class="rounded-2xl overflow-hidden border border-stone-200 shadow-inner flex-1 flex flex-col">
@@ -749,7 +757,7 @@ service cloud.firestore {
                 <div id="wa-preview-avatar" class="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">ד</div>
                 <div class="min-w-0">
                   <p id="wa-preview-contact" class="text-sm font-semibold truncate">אורח לדוגמה</p>
-                  <p id="wa-preview-phone" dir="ltr" class="text-[11px] text-emerald-100 text-right">050-123-4567</p>
+                  <p id="wa-preview-phone" dir="ltr" class="text-[11px] text-emerald-100 text-right">-</p>
                 </div>
               </div>
               <!-- WA Chat Area -->
@@ -764,9 +772,9 @@ service cloud.firestore {
               </div>
             </div>
 
-            <button id="btn-wa-test-open" type="button" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition flex items-center justify-center gap-2">
+            <button id="btn-wa-test-open" type="button" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition flex items-center justify-center gap-2">
               <i data-lucide="send" class="w-4 h-4"></i>
-              <span>פתח הודעה זו בוואטסאפ לבדיקה</span>
+              <span>פתח הודעה ב-WhatsApp</span>
             </button>
           </div>
         </div>
@@ -845,7 +853,7 @@ service cloud.firestore {
           </div>
         </div>
 
-        <div id="additional-guests-section" class="hidden bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/70 space-y-3">
+        <div id="additional-guests-section" class="bg-amber-50/60 rounded-xl p-3.5 border border-amber-200/70 space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div>
               <span class="block text-sm font-semibold text-stone-800">שמות נוספים באותה הזמנה</span>
@@ -1295,11 +1303,17 @@ service cloud.firestore {
       }
     }
 
-    function buildRsvpUrl(guestId) {
-      if (window.location.protocol.startsWith("http")) {
-        return `${window.location.origin}${window.location.pathname}?id=${encodeURIComponent(guestId)}`;
+    function getPublicAppBaseUrl() {
+      const hostname = window.location.hostname.toLowerCase();
+      if (window.location.protocol !== "https:" || hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1") {
+        return "";
       }
-      return `https://wedding-f8c29.web.app/?id=${encodeURIComponent(guestId)}`;
+      return new URL(".", window.location.href).toString();
+    }
+
+    function buildRsvpUrl(guestId) {
+      const baseUrl = getPublicAppBaseUrl();
+      return baseUrl ? `${baseUrl}?id=${encodeURIComponent(guestId)}` : "";
     }
 
     function buildGoogleCalendarUrl(s) {
@@ -1569,6 +1583,7 @@ service cloud.firestore {
           // Sort by most recently updated
           list.sort((a, b) => getTimestampMillis(b.updatedAt) - getTimestampMillis(a.updatedAt));
           state.guests = list;
+          renderGroupFilterOptions();
           renderAllAdminViews();
         },
         (err) => {
@@ -1652,10 +1667,12 @@ service cloud.firestore {
       const q = document.getElementById("filter-search").value.trim().toLowerCase();
       const status = document.getElementById("filter-status").value;
       const side = document.getElementById("filter-side").value;
+      const group = document.getElementById("filter-group").value;
 
       return state.guests.filter((g) => {
         if (status !== "all" && g.status !== status) return false;
         if (side !== "all" && g.side !== side) return false;
+        if (group !== "all" && g.group !== group) return false;
         if (q) {
           const hay = [
             g.fullName,
@@ -1672,6 +1689,18 @@ service cloud.firestore {
       });
     }
 
+    function renderGroupFilterOptions() {
+      const select = document.getElementById("filter-group");
+      const selectedGroup = select.value;
+      const groups = [...new Set(state.guests.map((guest) => String(guest.group || "").trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, "he"));
+
+      select.innerHTML = `<option value="all">כל הקבוצות</option>${groups
+        .map((group) => `<option value="${escapeHtml(group)}">${escapeHtml(group)}</option>`)
+        .join("")}`;
+      select.value = groups.includes(selectedGroup) ? selectedGroup : "all";
+    }
+
     function renderGuestRsvpChoice(guest) {
       const choice = guest.rsvpUpdatedAt ? RSVP_CHOICE_MAP[guest.status] : null;
       if (!choice) {
@@ -1680,12 +1709,26 @@ service cloud.firestore {
       return `<span title="בחירת המוזמן בהזמנה" class="inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-semibold ${choice.cls}"><span>${choice.emoji}</span><span>${choice.label}</span></span>`;
     }
 
+    function renderGuestPhoneBadge(phone, compact = false) {
+      const displayPhone = formatPhoneDisplay(phone);
+      const colorClass = displayPhone
+        ? "text-stone-700 bg-stone-100"
+        : "text-rose-700 bg-rose-50 border border-rose-200";
+      const sizeClass = compact ? "px-2 py-0.5 rounded-md" : "px-2 py-1 rounded-lg";
+      return `<span dir="ltr" class="font-mono text-xs ${colorClass} ${sizeClass}">${escapeHtml(displayPhone || "לא הוזן")}</span>`;
+    }
+
     function renderAdditionalGuestNames(guest) {
       const names = Array.isArray(guest.additionalGuestNames)
         ? guest.additionalGuestNames.map((name) => String(name || "").trim()).filter(Boolean)
         : [];
-      if (!names.length) return "";
-      return `<div class="mt-1 text-xs text-stone-500">מצטרפים: ${names.map(escapeHtml).join("، ")}</div>`;
+      const additionalCount = Math.max(0, (Number(guest.invitedCount) || 1) - 1);
+      if (!additionalCount) return "";
+      const missingCount = Math.max(0, additionalCount - names.length);
+      if (!names.length) {
+        return `<div class="mt-1 text-xs text-amber-700">שם המוזמן/ת הנוסף/ת טרם הוזן</div>`;
+      }
+      return `<div class="mt-1 text-xs text-stone-500">מצטרפים: ${names.map(escapeHtml).join("، ")}${missingCount ? ` • ${missingCount} שמות נוספים טרם הוזנו` : ""}</div>`;
     }
 
     function renderGuestsList() {
@@ -1747,7 +1790,7 @@ service cloud.firestore {
               ${renderAdditionalGuestNames(g)}
             </td>
             <td class="py-3.5 px-3 whitespace-nowrap">
-              <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-1 rounded-lg">${escapeHtml(formatPhoneDisplay(g.phone) || "לא הוזן")}</span>
+              ${renderGuestPhoneBadge(g.phone)}
             </td>
             <td class="py-3.5 px-3 whitespace-nowrap">
               <div class="flex items-center gap-1.5">
@@ -1815,7 +1858,7 @@ service cloud.firestore {
                 ${g.greetingName && g.greetingName !== g.fullName ? `<p class="text-xs text-stone-500">פנייה: ${escapeHtml(g.greetingName)}</p>` : ""}
                 ${renderAdditionalGuestNames(g)}
                 <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
-                  <span dir="ltr" class="font-mono text-xs text-stone-700 bg-stone-100 px-2 py-0.5 rounded-md">${escapeHtml(formatPhoneDisplay(g.phone) || "לא הוזן")}</span>
+                  ${renderGuestPhoneBadge(g.phone, true)}
                   <span class="text-xs px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/70">${escapeHtml(g.side || "משותף")}</span>
                   ${g.group ? `<span class="text-xs px-2 py-0.5 rounded-md bg-stone-100 text-stone-600">${escapeHtml(g.group)}</span>` : ""}
                   ${g.tableNumber ? `<span class="text-xs px-2 py-0.5 rounded-md bg-stone-900 text-white font-semibold">שולחן ${escapeHtml(g.tableNumber)}</span>` : ""}
@@ -1915,13 +1958,25 @@ service cloud.firestore {
 
     function renderPreviewGuestSelect() {
       const sel = document.getElementById("wa-preview-guest-select");
+      const search = document.getElementById("wa-preview-guest-search").value.trim().toLocaleLowerCase("he");
       const prev = sel.value;
       if (!state.guests.length) {
-        sel.innerHTML = `<option value="__sample__">אורח לדוגמה (דוד משה)</option>`;
+        sel.innerHTML = `<option value="">אין מוזמנים ברשימה</option>`;
         return;
       }
-      sel.innerHTML = state.guests.map((g) => `<option value="${g.id}">${escapeHtml(g.fullName)}</option>`).join("");
-      if (prev && state.guests.some((g) => g.id === prev)) sel.value = prev;
+      const filtered = state.guests.filter((g) => {
+        const searchable = `${g.fullName || ""} ${g.greetingName || ""} ${g.phone || ""}`.toLocaleLowerCase("he");
+        return searchable.includes(search);
+      });
+      if (!filtered.length) {
+        sel.innerHTML = `<option value="">לא נמצאו מוזמנים</option>`;
+        return;
+      }
+      sel.innerHTML = filtered.map((g) => {
+        const phone = g.phone ? formatPhoneDisplay(g.phone) : "חסר מספר";
+        return `<option value="${escapeHtml(g.id)}">${escapeHtml(g.fullName)} · ${escapeHtml(phone)}</option>`;
+      }).join("");
+      sel.value = filtered.some((g) => g.id === prev) ? prev : filtered[0].id;
     }
 
     function getSelectedPreviewGuest() {
@@ -1929,26 +1984,52 @@ service cloud.firestore {
       const found = state.guests.find((g) => g.id === sel.value);
       if (found) return found;
       return {
-        id: "g_sample123456",
-        fullName: "משה ורחל כהן",
-        greetingName: "דוד משה ודודה רחל",
-        phone: "972501234567",
-        tableNumber: "12"
+        id: "",
+        fullName: "בחרו מוזמן",
+        greetingName: "אורחים יקרים",
+        phone: "",
+        tableNumber: ""
       };
     }
 
     function renderWhatsAppPreview() {
       const guest = getSelectedPreviewGuest();
+      const selectedGuest = state.guests.find((g) => g.id === guest.id);
+      const phoneResult = selectedGuest ? normalizeIsraeliPhone(selectedGuest.phone) : { valid: false, normalized: "" };
+      const hasPublicSite = Boolean(getPublicAppBaseUrl());
+      const sendButton = document.getElementById("btn-wa-test-open");
+      const recipientStatus = document.getElementById("wa-preview-recipient-status");
       const rawText = document.getElementById("template-textarea").value || state.settings.templates[state.activeTplKey];
       const rendered = renderTemplateText(rawText, guest);
 
       document.getElementById("wa-preview-avatar").textContent = (guest.fullName || "א").trim().charAt(0);
       document.getElementById("wa-preview-contact").textContent = guest.fullName;
-      document.getElementById("wa-preview-phone").textContent = formatPhoneDisplay(guest.phone);
+      const phoneElement = document.getElementById("wa-preview-phone");
+      phoneElement.textContent = phoneResult.valid
+        ? formatPhoneDisplay(phoneResult.normalized)
+        : selectedGuest && selectedGuest.phone ? "מספר לא תקין" : "חסר מספר";
+      phoneElement.classList.toggle("text-rose-100", !phoneResult.valid);
+      phoneElement.classList.toggle("text-emerald-100", phoneResult.valid);
       document.getElementById("wa-preview-body").innerHTML = escapeHtml(rendered).replace(
         /(https?:\/\/[^\s]+)/g,
         '<span class="text-sky-700 underline break-all" dir="ltr">$1</span>'
       );
+      sendButton.disabled = !selectedGuest || !phoneResult.valid || !hasPublicSite;
+
+      let statusMessage = "";
+      if (state.guests.length && !selectedGuest) {
+        statusMessage = "בחרו מוזמן מהרשימה כדי להכין הודעה.";
+      } else if (selectedGuest && !selectedGuest.phone) {
+        statusMessage = "חסר מספר טלפון — לא ניתן לפתוח הודעת WhatsApp למוזמן זה.";
+      } else if (selectedGuest && !phoneResult.valid) {
+        statusMessage = "מספר הטלפון לא תקין — עדכנו אותו לפני פתיחת WhatsApp.";
+      } else if (selectedGuest && !hasPublicSite) {
+        statusMessage = "קישור RSVP עדיין לא זמין: האתר פועל בכתובת מקומית ולא פורסם באינטרנט.";
+      } else if (!state.guests.length) {
+        statusMessage = "אין מוזמנים ברשימה.";
+      }
+      recipientStatus.textContent = statusMessage;
+      recipientStatus.classList.toggle("hidden", !statusMessage);
       refreshIcons();
     }
 
@@ -2320,6 +2401,7 @@ service cloud.firestore {
           const phoneRes = hasPhone ? normalizeIsraeliPhone(f.rawPhone) : { valid: true, normalized: "", reason: "" };
           const nameKey = normalizeGuestName(f.fullName);
           const matchingGuests = existingGuestsByName.get(nameKey) || [];
+          let additionalGuestNamesToSave = f.additionalGuestNames;
           let vStatus = "valid";
           let vNote = hasPhone ? "תקין" : "חסר טלפון — ניתן להוסיף בהמשך";
           let matchingGuestId = "";
@@ -2349,9 +2431,13 @@ service cloud.firestore {
               updateInvitedCount = Boolean(
                 f.hasInvitedCount && (Number(existingGuest.invitedCount) || 1) !== f.invitedCount
               );
+              additionalGuestNamesToSave = f.additionalGuestNames.length
+                ? f.additionalGuestNames
+                : f.hasInvitedCount
+                  ? (existingGuest.additionalGuestNames || []).slice(0, Math.max(0, f.invitedCount - 1))
+                  : existingGuest.additionalGuestNames || [];
               updateAdditionalGuestNames = Boolean(
-                f.additionalGuestNames.length &&
-                JSON.stringify(existingGuest.additionalGuestNames || []) !== JSON.stringify(f.additionalGuestNames)
+                JSON.stringify(existingGuest.additionalGuestNames || []) !== JSON.stringify(additionalGuestNamesToSave)
               );
               if (updatePhone || updateInvitedCount || updateAdditionalGuestNames) {
                 vStatus = "update";
@@ -2381,6 +2467,7 @@ service cloud.firestore {
 
           return {
             ...f,
+            additionalGuestNames: additionalGuestNamesToSave,
             normalizedPhone: phoneRes.normalized,
             matchingGuestId,
             updatePhone,
@@ -2681,7 +2768,7 @@ service cloud.firestore {
     document.getElementById("btn-empty-goto-import").addEventListener("click", () => switchAdminTab("import"));
 
     // Filters
-    ["filter-search", "filter-status", "filter-side"].forEach((id) => {
+    ["filter-search", "filter-status", "filter-side", "filter-group"].forEach((id) => {
       document.getElementById(id).addEventListener("input", () => { renderGuestsList(); refreshIcons(); });
       document.getElementById(id).addEventListener("change", () => { renderGuestsList(); refreshIcons(); });
     });
@@ -2690,6 +2777,7 @@ service cloud.firestore {
       document.getElementById("filter-search").value = "";
       document.getElementById("filter-status").value = "all";
       document.getElementById("filter-side").value = "all";
+      document.getElementById("filter-group").value = "all";
       renderGuestsList();
       refreshIcons();
     };
@@ -2707,10 +2795,8 @@ service cloud.firestore {
     function renderAdditionalGuestNameFields() {
       const invitedCount = Math.max(1, Math.min(30, Number(document.getElementById("gf-invitedCount").value) || 1));
       const additionalCount = invitedCount - 1;
-      const section = document.getElementById("additional-guests-section");
       const fields = document.getElementById("additional-guest-name-fields");
 
-      section.classList.toggle("hidden", additionalCount === 0);
       fields.innerHTML = Array.from({ length: additionalCount }, (_, index) => `
         <div>
           <label for="gf-additional-name-${index}" class="block text-xs font-medium text-stone-700 mb-1">שם מוזמן נוסף ${index + 1}</label>
@@ -2829,7 +2915,12 @@ service cloud.firestore {
           });
           showToast("סטטוס השליחה עודכן", "success");
         } else if (action === "copy-link") {
-          copyText(buildRsvpUrl(id), `קישור ה-RSVP של ${guest.fullName} הועתק!`);
+          const rsvpUrl = buildRsvpUrl(id);
+          if (!rsvpUrl) {
+            showToast("קישור RSVP יהיה זמין לאחר פרסום האתר באינטרנט", "error");
+            return;
+          }
+          copyText(rsvpUrl, `קישור ה-RSVP של ${guest.fullName} הועתק!`);
         } else if (action === "preview-rsvp") {
           openAdminRsvpPreview(guest);
         } else if (action === "edit") {
@@ -3048,6 +3139,10 @@ service cloud.firestore {
       });
     });
 
+    document.getElementById("wa-preview-guest-search").addEventListener("input", () => {
+      renderPreviewGuestSelect();
+      renderWhatsAppPreview();
+    });
     document.getElementById("wa-preview-guest-select").addEventListener("change", renderWhatsAppPreview);
 
     document.getElementById("btn-save-templates").addEventListener("click", async () => {
@@ -3063,13 +3158,22 @@ service cloud.firestore {
     });
 
     document.getElementById("btn-wa-test-open").addEventListener("click", () => {
-      const guest = getSelectedPreviewGuest();
-      if (!guest.phone) {
-        showToast("הוסיפו מספר טלפון למוזמן לפני פתיחת WhatsApp", "error");
+      const guest = state.guests.find((g) => g.id === document.getElementById("wa-preview-guest-select").value);
+      if (!guest) {
+        showToast("בחרו מוזמן מהרשימה", "error");
+        return;
+      }
+      const phoneResult = normalizeIsraeliPhone(guest.phone);
+      if (!phoneResult.valid) {
+        showToast(guest.phone ? "מספר הטלפון לא תקין" : "הוסיפו מספר טלפון למוזמן לפני פתיחת WhatsApp", "error");
+        return;
+      }
+      if (!getPublicAppBaseUrl()) {
+        showToast("קישור RSVP יהיה זמין לאחר פרסום האתר באינטרנט", "error");
         return;
       }
       const text = renderTemplateText(document.getElementById("template-textarea").value, guest);
-      window.open(`https://wa.me/${guest.phone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+      window.open(`https://wa.me/${phoneResult.normalized}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     });
 
     // RSVP Guest Form & Admin Preview Listeners
